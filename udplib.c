@@ -50,7 +50,6 @@
 
 /* Assumptions:
  *
- *   Data is in word18 format (uint32_t)
  *   Data is sent in host order; the reciever must be of the same endianness.
  *
  */
@@ -71,15 +70,13 @@
 
 #include "udplib.h"
 
-typedef uint32_t word18;
-
 // Local constants ...
 #define MAXLINKS        10      // maximum number of simultaneous connections
 
 //   This constant determines the longest possible data payload that can be
 // sent. 
 
-#define MAXDATA      16384      // longest possible packet (in word18 words)
+#define MAXDATA      16384      // longest possible packet (in bytes)
 
 // UDP connection data structure ...
 //   One of these blocks is allocated for every simulated modem link. 
@@ -102,7 +99,7 @@ typedef struct _UDP_LINK UDP_LINK;
 // checked on receive.  It's hardly foolproof, but its a simple attempt to
 // guard against other applications dumping unsolicited UDP messages into our
 // receiver socket...
-#define MAGIC   355
+#define MAGIC   6180
 
 // UDP wrapper data structure ...
 //   This is the UDP packet which is actually transmitted or received.  It
@@ -114,7 +111,7 @@ struct _UDP_PACKET
     uint32_t  magic;                // UDP "magic number" (see above)
     uint32_t  sequence;             // UDP packet sequence number
     uint32_t  count;                // number of words to follow
-    uint32_t  data [MAXDATA];       // and the actual data words/packet
+    uint8_t   data [MAXDATA];       // and the actual data words/packet
   };
 typedef struct _UDP_PACKET UDP_PACKET;
 #define UDP_HEADER_LEN  (3 * sizeof (uint32_t))
@@ -305,12 +302,12 @@ printf("link %d - closed\n", link);
     return 0;
   }
 
-int udp_send (int link, uint16_t * pdata, uint16_t count)
+int udp_send (int link, uint8_t * pdata, uint16_t count)
   {
 
     UDP_PACKET pkt;
     int pktlen;
-    uint16_t i;
+    uint i;
 
     if ((link < 0) || (link >= MAXLINKS))
       return -1;
@@ -326,7 +323,7 @@ int udp_send (int link, uint16_t * pdata, uint16_t count)
     pkt . count = count;
     for (i = 0; i < count; i ++)
       pkt . data [i] = * pdata ++;
-    pktlen = UDP_HEADER_LEN + count * sizeof (uint32_t);
+    pktlen = UDP_HEADER_LEN + count * sizeof (uint8_t);
 
     int rc = send (udp_links [link] . sock, & pkt, pktlen, 0);
     if (rc == -1)
@@ -359,13 +356,13 @@ static int udp_receive_packet (int link, UDP_PACKET * ppkt, size_t pktsiz)
     return n;
   }
 
-int udp_receive (int link, uint16_t * pdata, uint16_t maxbuf)
+int udp_receive (int link, uint8_t * pdata, uint16_t maxbuf)
   {
     // Receive an packet from the virtual modem. pdata is a pointer to where
     // the IMP packet data should be stored, and maxbuf is the maximum length
-    // of that buffer in uint32_t words (not bytes!).  If a message is
+    // of that buffer in bytes.  If a message is
     // successfully received then this routine returns the length, again in
-    // uint32_t words, of the packet.  The caller can detect buffer overflows by
+    // bytes, of the packet.  The caller can detect buffer overflows by
     // comparing this result to maxbuf.  If no packets are waiting right now
     // then zero is returned, and -1 is returned in the event of any fatal
     // socket I/O error.
@@ -403,7 +400,7 @@ int udp_receive (int link, uint16_t * pdata, uint16_t maxbuf)
             continue;
           }
         implen = pkt . count;
-        explen = UDP_HEADER_LEN + implen * sizeof (uint32_t);
+        explen = UDP_HEADER_LEN + implen * sizeof (uint8_t);
         if (explen != pktlen)
           {
             //sim_debug(IMP_DBG_UDP, dptr, "link %d - received packet length wrong (expected=%d received=%d)\n", link, explen, pktlen);
