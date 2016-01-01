@@ -48,6 +48,13 @@
 
 */
 
+/* Assumptions:
+ *
+ *   Data is in word18 format (uint32_t)
+ *   Data is sent in host order; the reciever must be of the same endianness.
+ *
+ */
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -63,19 +70,16 @@
 
 
 #include "udplib.h"
-//#include "h316_imp.h"
+
+typedef uint32_t word18;
 
 // Local constants ...
 #define MAXLINKS        10      // maximum number of simultaneous connections
-//   This constant determines the longest possible IMP data payload that can be
-// sent. Most IMP messages are trivially small - 68 words or so - but, when one
-// IMP asks for a reload the neighbor IMP sends the entire memory image in a
-// single message!  That message is about 14K words long.
-//   The next thing you should worry about is whether the underlying IP network
-// can actually send a UDP packet of this size.  It turns out that there's no
-// simple answer to that - it'll be fragmented for sure, but as long as all
-// the fragments arrive intact then the destination should reassemble them.
-#define MAXDATA      16384      // longest possible IMP packet (in H316 words)
+
+//   This constant determines the longest possible data payload that can be
+// sent. 
+
+#define MAXDATA      16384      // longest possible packet (in word18 words)
 
 // UDP connection data structure ...
 //   One of these blocks is allocated for every simulated modem link. 
@@ -98,21 +102,22 @@ typedef struct _UDP_LINK UDP_LINK;
 // checked on receive.  It's hardly foolproof, but its a simple attempt to
 // guard against other applications dumping unsolicited UDP messages into our
 // receiver socket...
-#define MAGIC   ((uint32_t) (((((('H' << 8) | '3') << 8) | '1') << 8) | '6'))
+#define MAGIC   355
 
 // UDP wrapper data structure ...
 //   This is the UDP packet which is actually transmitted or received.  It
-// contains the actual IMP packet, plus whatever additional information we
-// need to keep track of things.  NOTE THAT ALL DATA IN THIS PACKET, INCLUDING
-// THE H316 MEMORY WORDS, ARE SENT AND RECEIVED WITH NETWORK BYTE ORDER!
-struct _UDP_PACKET {
-  uint32_t  magic;                // UDP "magic number" (see above)
-  uint32_t  sequence;             // UDP packet sequence number
-  uint16_t  count;                // number of H316 words to follow
-  uint16_t  data[MAXDATA];        // and the actual H316 data words/IMP packet
-};
+// contains the actual packet, plus whatever additional information we
+// need to keep track of things. 
+
+struct _UDP_PACKET
+  {
+    uint32_t  magic;                // UDP "magic number" (see above)
+    uint32_t  sequence;             // UDP packet sequence number
+    uint32_t  count;                // number of words to follow
+    uint32_t  data [MAXDATA];       // and the actual data words/packet
+  };
 typedef struct _UDP_PACKET UDP_PACKET;
-#define UDP_HEADER_LEN  (2*sizeof(uint32_t) + sizeof(uint16_t))
+#define UDP_HEADER_LEN  (3 * sizeof (uint32_t))
 
 static UDP_LINK udp_links [MAXLINKS];
 
@@ -246,8 +251,8 @@ int udp_create (char * premote, int * pln)
     memset ((char *) & si_me, 0, sizeof (si_me));
  
     si_me . sin_family = AF_INET;
-    si_me . sin_port = htons (udp_links [link] . lportno);
-    si_me . sin_addr . s_addr = htonl (INADDR_ANY);
+    si_me . sin_port = udp_links [link] . lportno;
+    si_me . sin_addr . s_addr = INADDR_ANY;
      
     rc = bind (sock, (struct sockaddr *) & si_me, sizeof (si_me));
     if (rc == -1)
@@ -274,12 +279,6 @@ int udp_create (char * premote, int * pln)
     // All done - mark the TCP_LINK data as "used" and return the index.
      udp_links [link] . used = true;
      * pln = link;
-     //udp_lines[link].dptr = udp_links[link].dptr = dptr;      // save device
-     //udp_tmxr.uptr = dptr->units;
-     //udp_tmxr.last_poll_time = 1;          // h316'a use of TMXR doesn't poll periodically for connects
-     //tmxr_poll_conn (&udp_tmxr);           // force connection initialization now
-     //udp_tmxr.last_poll_time = 1;          // h316'a use of TMXR doesn't poll periodically for connects
-     //sim_debug(IMP_DBG_UDP, dptr, "link %d - listening on port %s and sending to %s\n", link, udp_links[link].lport, udp_links[link].rhostport);
 printf ("link %d - listening on port %s and sending to %s:%s\n", link, udp_links [link] . lport, udp_links [link] . rhost, udp_links [link] . rport);
 
     return 0;
@@ -308,14 +307,6 @@ printf("link %d - closed\n", link);
 
 int udp_send (int link, uint16_t * pdata, uint16_t count)
   {
-    //   This routine does all the work of sending an IMP data packet.  pdata
-    // is a pointer (usually into H316 simulated memory) to the IMP packet data,
-    // count is the length of the data (in H316 words, not bytes!), and pdest is
-    // the destination socket.  There are two things worthy of note here - first,
-    // notice that the H316 words are sent in network order, so the remote simh
-    // doesn't necessarily need to have the same endian-ness as this machine.
-    // Second, notice that transmitting sockets are NOT set to non blocking so
-    // this routine might wait, but we assume the wait will never be too long.
 
     UDP_PACKET pkt;
     int pktlen;
@@ -327,61 +318,35 @@ int udp_send (int link, uint16_t * pdata, uint16_t count)
       return -1;
     if ((pdata == NULL) || (count == 0) || (count > MAXDATA))
       return -1;
-    //if (dptr != udp_links [link].dptr) return SCPE_IERR;
   
     //   Build the UDP packet, filling in our own header information and copying
-    // the H316 words from memory.  REMEMBER THAT EVERYTHING IS IN NETWORK ORDER!
-    pkt . magic = htonl (MAGIC);
-    pkt . sequence = htonl (udp_links [link] . txsequence ++);
-    pkt . count = htons (count);
+    // the words from memory.
+    pkt . magic = MAGIC;
+    pkt . sequence = udp_links [link] . txsequence ++;
+    pkt . count = count;
     for (i = 0; i < count; i ++)
-      pkt . data [i] = htons (* pdata ++);
-    pktlen = UDP_HEADER_LEN + count * sizeof (uint16_t);
-
-#if 0
-    // Send it and we're outta here ...
-    iret = tmxr_put_packet_ln (&udp_lines[link], (const uint8 *)&pkt, (size_t)pktlen);
-    if (iret != SCPE_OK) return udp_error(link, "tmxr_put_packet_ln()");
-#endif
+      pkt . data [i] = * pdata ++;
+    pktlen = UDP_HEADER_LEN + count * sizeof (uint32_t);
 
     int rc = send (udp_links [link] . sock, & pkt, pktlen, 0);
     if (rc == -1)
       {
         return -2;
       }
-    //sim_debug(IMP_DBG_UDP, dptr, "link %d - packet sent (sequence=%d, length=%d)\n", link, ntohl(pkt.sequence), ntohs(pkt.count));
-printf ("link %d - packet sent (sequence=%d, length=%d)\n", link, ntohl (pkt . sequence), ntohs (pkt . count));
+printf ("link %d - packet sent (sequence=%d, length=%d)\n", link, pkt . sequence, pkt . count);
     return 0;
   }
 
 static int udp_receive_packet (int link, UDP_PACKET * ppkt, size_t pktsiz)
   {
-    //   This routine will do the hard part of receiving a UDP packet.  If it's
+    // This routine will do the hard part of receiving a UDP packet.  If it's
     // successful the packet length, in bytes, is returned.  The receiver socket
     // is non-blocking, so if no packet is available then zero will be returned
     // instead.  Lastly, if a fatal socket I/O error occurs, -1 is returned.
     //
-    //   Note that this routine only receives the packet - it doesn't handle any
-    // of the checking for valid packets, unexpected packets, duplicate or out of
-    // sequence packets.  That's strictly the caller's problem!
-
-#if 0
-    ssize_t pktsiz;
-    const uint8 * pbuf;
-    int ret;
-  
-    udp_lines [link] . rcve = true;          // Enable receiver
-    tmxr_poll_rx (&udp_tmxr);
-    ret = tmxr_get_packet_ln (&udp_lines[link], &pbuf, &pktsiz);
-    udp_lines[link].rcve = FALSE;          // Disable receiver
-    if (ret != SCPE_OK) {
-      udp_error(link, "tmxr_get_packet_ln()");
-      return NOLINK;
-    }
-    if (pbuf == NULL) return 0;
-    // Got a packet, so copy it to the packet buffer
-    memcpy (ppkt, pbuf, pktsiz);
-#endif
+    // Note that this routine only receives the packet - it doesn't handle any
+    // of the checking for valid packets, unexpected packets, duplicate or out
+    // of sequence packets.  That's strictly the caller's problem!
 
     ssize_t n = read (udp_links [link] . sock, ppkt, pktsiz);
     if (n < 0)
@@ -390,27 +355,29 @@ static int udp_receive_packet (int link, UDP_PACKET * ppkt, size_t pktsiz)
           return 0;
         return -1;
       }
-//printf ("udp_receive_packet returns %ld\n", n);
+//printf ("udp_receive_packet returns %d\n", n);
     return n;
   }
 
 int udp_receive (int link, uint16_t * pdata, uint16_t maxbuf)
   {
-    //   Receive an IMP packet from the virtual modem. pdata is a pointer usually
-    // directly into H316 simulated memory) to where the IMP packet data should
-    // be stored, and maxbuf is the maximum length of that buffer in H316 words
-    // (not bytes!).  If a message is successfully received then this routine
-    // returns the length, again in H316 words, of the IMP packet.  The caller
-    // can detect buffer overflows by comparing this result to maxbuf.  If no
-    // packets are waiting right now then zero is returned, and -1 is returned
-    // in the event of any fatal socket I/O error.
+    // Receive an packet from the virtual modem. pdata is a pointer to where
+    // the IMP packet data should be stored, and maxbuf is the maximum length
+    // of that buffer in uint32_t words (not bytes!).  If a message is
+    // successfully received then this routine returns the length, again in
+    // uint32_t words, of the packet.  The caller can detect buffer overflows by
+    // comparing this result to maxbuf.  If no packets are waiting right now
+    // then zero is returned, and -1 is returned in the event of any fatal
+    // socket I/O error.
     //
-    //  This routine also handles checking for unsolicited messages and duplicate
-    // or out of sequence messages.  All of these are unceremoniously discarded.
+    // This routine also handles checking for unsolicited messages and
+    // duplicate or out of sequence messages.  All of these are
+    // unceremoniously discarded.
     //
-    //   One final note - it's explicitly allowed for pdata to be null and/or
+    // One final note - it's explicitly allowed for pdata to be null and/or
     // maxbuf to be zero.  In either case the received package is discarded, but
     // the actual length of the discarded package is still returned.
+
     UDP_PACKET pkt;
     int32_t pktlen, explen, implen, i;
     uint32_t magic, pktseq;
@@ -429,40 +396,40 @@ int udp_receive (int link, uint16_t * pdata, uint16_t maxbuf)
             //sim_debug(IMP_DBG_UDP, dptr, "link %d - received packet w/o header (length=%d)\n", link, pktlen);
             continue;
           }
-        magic = ntohl (pkt . magic);
+        magic = pkt . magic;
         if (magic != MAGIC)
           {
             //sim_debug(IMP_DBG_UDP, dptr, "link %d - received packet w/bad magic number (magic=%08x)\n", link, magic);
             continue;
           }
-        implen = ntohs (pkt . count);
-        explen = UDP_HEADER_LEN + implen * sizeof (uint16_t);
+        implen = pkt . count;
+        explen = UDP_HEADER_LEN + implen * sizeof (uint32_t);
         if (explen != pktlen)
           {
             //sim_debug(IMP_DBG_UDP, dptr, "link %d - received packet length wrong (expected=%d received=%d)\n", link, explen, pktlen);
             continue;
           }
   
-        //  Now the hard part = check the sequence number.  The rxsequence value is
-        // the number of the next packet we expect to receive - that's the number
-        // this packet should have.  If this packet's sequence is less than that,
-        // then this packet is out of order or a duplicate and we discard it.  If
-        // this packet is greater than that, then we must have missed one or two
-        // packets.  In that case we MUST update rxsequence to match this one;
-        // otherwise the two ends could never resynchronize after a lost packet.
-        //
-        //  And there's one final complication to worry about - if the simh on the
-        // other end is restarted for some reason, then his sequence numbers will
-        // reset to zero.  In that case we'll never recover synchronization without
-        // special efforts.  The hack is to check for a packet sequence number of
-        // zero and, if we find it, force synchronization.  This improves the
-        // situation, but I freely admit that it's possible to think of a number of
-        // cases where this also fails.  The only absolute solution is to implement
-        // a more complicated system with non-IMP control messages exchanged between
-        // the modem emulation on both ends.  That'd be nice, but I'll leave it as
-        // an exercise for later.
+        // Now the hard part = check the sequence number.  The rxsequence value
+        // is the number of the next packet we expect to receive - that's the
+        // number this packet should have.  If this packet's sequence is less
+        // than that, then this packet is out of order or a duplicate and we
+        // discard it.  If this packet is greater than that, then we must have
+        // missed one or two packets.  In that case we MUST update rxsequence
+        // to match this one; otherwise the two ends could never resynchronize
+        // after a lost packet./  And there's one final complication to worry
+        // about - if the simh on the other end is restarted for some reason,
+        // then his sequence numbers will reset to zero.  In that case we'll
+        // never recover synchronization without special efforts.  The hack is
+        // to check for a packet sequence number of zero and, if we find it,
+        // force synchronization.  This improves the situation, but I freely
+        // admit that it's possible to think of a number of cases where this
+        // also fails.  The only absolute solution is to implement a more
+        // complicated system with non-IMP control messages exchanged between
+        // the modem emulation on both ends.  That'd be nice, but I'll leave it
+        // as an exercise for later.
 
-        pktseq = ntohl (pkt . sequence);
+        pktseq = pkt . sequence;
         if ((pktseq == 0) && (udp_links [link] . rxsequence != 0))
           {
             //sim_debug(IMP_DBG_UDP, dptr, "link %d - remote modem restarted\n", link);
@@ -485,11 +452,11 @@ int udp_receive (int link, uint16_t * pdata, uint16_t maxbuf)
             return implen;
           }
   
-        // Copy the data to the H316 memory and we're done!
+        // Copy the data and we're done!
         //sim_debug (IMP_DBG_UDP, dptr, "link %d - packet received (sequence=%d, length=%d)\n", link, pktseq, pktlen);
 printf ("link %d - packet received (sequence=%d, length=%d)\n", link, pktseq, pktlen);
         for (i = 0;  i < (implen < maxbuf ? implen : maxbuf);  ++ i)
-          * pdata ++ = ntohs (pkt . data [i]);
+          * pdata ++ = pkt . data [i];
         return implen;
       }
   

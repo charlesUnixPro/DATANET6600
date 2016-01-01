@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include "sim_defs.h"
 
 #ifdef __GNUC__

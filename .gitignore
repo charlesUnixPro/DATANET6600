@@ -1,3 +1,5 @@
 dn6600
 *.o
-
+*.d
+tags
+test

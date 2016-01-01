@@ -1,29 +1,7 @@
-#include "sim_defs.h"
+#include <unistd.h>
 
-#ifdef __GNUC__
-#define NO_RETURN   __attribute__ ((noreturn))
-#define UNUSED      __attribute__ ((unused))
-#else
-#define NO_RETURN
-#define UNUSED
-#endif
-
-typedef uint word1;
-typedef uint word2;
-typedef uint word3;
-typedef uint word6;
-typedef uint word9;
-typedef uint word15;
-typedef uint word18;
-
-// Word size
-enum { WSZ = 18 };
-
-// Address size
-enum { ASZ = 15 };
-
-// Memory size
-enum { MEM_SIZE = 1 << 15 };
+#include "global.h"
+#include "coupler.h"
 
 static word18 M [MEM_SIZE];
 
@@ -153,15 +131,13 @@ static UNIT cpu_unit =
 
 /* scp Debug flags */
 
-#define DBG_TRACE       (1U << 0)    ///< instruction trace
-
 static DEBTAB cpu_dt[] = 
   {
     { "TRACE",      DBG_TRACE       },
     { NULL,         0               }
   };
 
-DEVICE cpu_dev =
+static DEVICE cpuDev =
   {
     "CPU",          /* name */
     & cpu_unit,     /* units */
@@ -291,8 +267,8 @@ enum
 
 DEVICE * sim_devices [] =
   {
-// XXX
-    NULL
+    & cpuDev,
+    & couplerDev
   };
 
 const char * sim_stop_messages [] =
@@ -468,6 +444,14 @@ static struct opc_t opcTable [64] =
 
   };
 
+static char * disassemble (word18 ins)
+  {
+    static char result[132] = "???";
+    word6 OPCODE = getbits18 (ins, 3, 6);
+    strcpy (result, opcTable [OPCODE] . name);
+    return result;
+  }
+
 t_stat sim_instr (void)
   {
     int reason = 0;
@@ -499,7 +483,7 @@ t_stat sim_instr (void)
         // address, and dispatch (via a switch statement) for execution.        
 
         word18 ins = M [IC];
-        //sim_debug (DBG_TRACE, cpu_dev, "Instruction fetch IC: %05o Instruction %06o\n", IC, ins);
+        sim_debug (DBG_TRACE, & cpuDev, "%05o %06o %s\n", IC, ins, disassemble (ins));
 
         word6 OPCODE = getbits18 (ins, 3, 6);
         word1 I = 0;
@@ -627,6 +611,10 @@ t_stat sim_instr (void)
                 //XXX
               }
           }
+
+// Instruction times vary from 1 us up.
+        usleep (1);
+
       }
     while (reason == 0);
     return reason;
