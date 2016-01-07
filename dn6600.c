@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "global.h"
 #include "coupler.h"
@@ -357,90 +358,105 @@ struct opc_t
     // opcG1c: 52
     // opcG1d: 12
     // opcG2:  33
-    enum { opcILL, opcMR, opcG1a, opcG1b, opcG1c, opcG1d, opcG2 } grp; // opcode group (memory, group1, group2)
+    enum { opcILL, opcMR, opcG1, opcG2 } grp; // opcode group (memory, group1, group2)
+// prepare address is implied by grp == opcMR
+// opcRD operand read
+// oprWR operand write
+    bool opcRD, opcWR;
+    enum { opW, opDW } opSize;
+
+#define OP_CA    false, false, opW
+#define OP_RD    true,  false, opW
+#define OP_WR    false, true,  opW
+#define OP_RMW   true,  true,  opW
+#define OP_DCA   false, false, opDW
+#define OP_DRD   true,  false, opDW
+#define OP_DWR   false, true,  opDW
+#define OP_DRMW  true,  true,  opDW
+#define OP_NULL  false, false, 0
   };
 
 static struct opc_t opcTable [64] =
   {
 // 00 - 07
-    { "ill",     opcILL }, // 00
-    { "MPF",     opcMR  }, // 01
-    { "ADCX2",   opcMR  }, // 02
-    { "LDX2",    opcMR  }, // 03
-    { "LDAQ",    opcMR  }, // 04
-    { "ill",     opcILL }, // 05
-    { "ADA",     opcMR  }, // 06
-    { "LDA",     opcMR  }, // 07
+    { "ill",     opcILL, OP_NULL   }, // 00
+    { "MPF",     opcMR,  OP_RD     }, // 01 Multiply fraction
+    { "ADCX2",   opcMR,  OP_RD     }, // 02
+    { "LDX2",    opcMR,  OP_RD     }, // 03
+    { "LDAQ",    opcMR,  OP_DRD    }, // 04
+    { "ill",     opcILL, OP_NULL   }, // 05
+    { "ADA",     opcMR,  OP_RD     }, // 06
+    { "LDA",     opcMR,  OP_RD     }, // 07
 
 // 10 - 17
-    { "TSY",     opcMR  }, // 10
-    { "ill",     opcILL }, // 11
-    { "grp1d",   opcG1d }, // 12
-    { "STX2",    opcMR  }, // 13
-    { "STAQ",    opcMR  }, // 14
-    { "ADAQ",    opcMR  }, // 15
-    { "ASA",     opcMR  }, // 16
-    { "STA",     opcMR  }, // 17
+    { "TSY",     opcMR,  OP_WR     }, // 10
+    { "ill",     opcILL, OP_NULL   }, // 11
+    { "grp1d",   opcG1 }, // 12
+    { "STX2",    opcMR,  OP_WR     }, // 13
+    { "STAQ",    opcMR,  OP_DWR    }, // 14
+    { "ADAQ",    opcMR,  OP_DRD    }, // 15
+    { "ASA",     opcMR,  OP_RMW    }, // 16
+    { "STA",     opcMR,  OP_WR     }, // 17
 
 // 20 - 27
-    { "SZN",     opcMR  }, // 20
-    { "DVF",     opcMR  }, // 21
-    { "grp1b",   opcG1b }, // 22
-    { "CMPX2",   opcMR  }, // 23
-    { "SBAQ",    opcMR  }, // 24
-    { "ill",     opcILL }, // 25
-    { "SBA",     opcMR  }, // 26
-    { "CMPA",    opcMR  }, // 27
+    { "SZN",     opcMR,  OP_RD     }, // 20
+    { "DVF",     opcMR,  OP_RD     }, // 21
+    { "grp1b",   opcG1 }, // 22
+    { "CMPX2",   opcMR,  OP_RD     }, // 23
+    { "SBAQ",    opcMR,  OP_DRD    }, // 24
+    { "ill",     opcILL, OP_NULL   }, // 25
+    { "SBA",     opcMR,  OP_RD     }, // 26
+    { "CMPA",    opcMR,  OP_RD     }, // 27
 
 // 30 - 37
-    { "LDEX",    opcMR  }, // 30
-    { "CANA",    opcMR  }, // 31
-    { "ANSA",    opcMR  }, // 32
+    { "LDEX",    opcMR,  OP_NULL   }, // 30
+    { "CANA",    opcMR,  OP_RD     }, // 31
+    { "ANSA",    opcMR,  OP_RMW    }, // 32
     { "grp2",    opcG2  }, // 32
-    { "ANA",     opcMR  }, // 34
-    { "ERA",     opcMR  }, // 35
-    { "SSA",     opcMR  }, // 36
-    { "ORA",     opcMR  }, // 37
+    { "ANA",     opcMR,  OP_RD     }, // 34
+    { "ERA",     opcMR,  OP_RD     }, // 35
+    { "SSA",     opcMR,  OP_RMW    }, // 36
+    { "ORA",     opcMR,  OP_RD     }, // 37
 
 // 40 - 47
-    { "ADCX3",   opcMR  }, // 40
-    { "LDX3",    opcMR  }, // 41
-    { "ADCX1",   opcMR  }, // 42
-    { "LDX1",    opcMR  }, // 43
-    { "LDI",     opcMR  }, // 44
-    { "TNC",     opcMR  }, // 45
-    { "ADQ",     opcMR  }, // 46
-    { "LDQ",     opcMR  }, // 47
+    { "ADCX3",   opcMR,  OP_RD     }, // 40
+    { "LDX3",    opcMR,  OP_RD     }, // 41
+    { "ADCX1",   opcMR,  OP_RD     }, // 42
+    { "LDX1",    opcMR,  OP_RD     }, // 43
+    { "LDI",     opcMR,  OP_RD     }, // 44
+    { "TNC",     opcMR,  OP_NULL   }, // 45
+    { "ADQ",     opcMR,  OP_RD     }, // 46
+    { "LDQ",     opcMR,  OP_RD     }, // 47
 
 // 50 - 57
-    { "STX3",    opcMR  }, // 50
-    { "ill",     opcILL }, // 51
-    { "grp1c",   opcG1c }, // 52
-    { "STX1",    opcMR  }, // 53
-    { "STI",     opcMR  }, // 54
-    { "TOV",     opcMR  }, // 55
-    { "STZ",     opcMR  }, // 56
-    { "STQ",     opcMR  }, // 57
+    { "STX3",    opcMR,  OP_WR     }, // 50
+    { "ill",     opcILL, OP_NULL   }, // 51
+    { "grp1c",   opcG1 }, // 52
+    { "STX1",    opcMR,  OP_WR     }, // 53
+    { "STI",     opcMR,  OP_WR     }, // 54
+    { "TOV",     opcMR,  OP_NULL   }, // 55
+    { "STZ",     opcMR,  OP_WR     }, // 56
+    { "STQ",     opcMR,  OP_WR     }, // 57
 
 // 60 - 67
-    { "CIOC",    opcMR  }, // 60
-    { "CMPX3",   opcMR  }, // 61
-    { "ERSA",    opcMR  }, // 62
-    { "CMPX1",   opcMR  }, // 63
-    { "TNZ",     opcMR  }, // 64
-    { "TPL",     opcMR  }, // 65
-    { "SBQ",     opcMR  }, // 66
-    { "CMPQ",    opcMR  }, // 67
+    { "CIOC",    opcMR,  OP_NULL   }, // 60
+    { "CMPX3",   opcMR,  OP_RD     }, // 61
+    { "ERSA",    opcMR,  OP_RMW    }, // 62
+    { "CMPX1",   opcMR,  OP_RD     }, // 63
+    { "TNZ",     opcMR,  OP_NULL   }, // 64
+    { "TPL",     opcMR,  OP_NULL   }, // 65
+    { "SBQ",     opcMR,  OP_RD     }, // 66
+    { "CMPQ",    opcMR,  OP_RD     }, // 67
 
 // 70 - 77
-    { "STEX",    opcMR  }, // 70
-    { "TRA",     opcMR  }, // 71
-    { "ORSA",    opcMR  }, // 72
-    { "grp1a",   opcG1a }, // 73
-    { "TZE",     opcMR  }, // 74
-    { "TMI",     opcMR  }, // 75
-    { "AOS",     opcMR  }, // 76
-    { "ill",     opcILL } // 77
+    { "STEX",    opcMR,  OP_NULL   }, // 70
+    { "TRA",     opcMR,  OP_NULL   }, // 71
+    { "ORSA",    opcMR,  OP_RMW    }, // 72
+    { "grp1a",   opcG1 }, // 73
+    { "TZE",     opcMR,  OP_NULL   }, // 74
+    { "TMI",     opcMR,  OP_NULL   }, // 75
+    { "AOS",     opcMR,  OP_RMW    }, // 76
+    { "ill",     opcILL, OP_NULL   } // 77
 
   };
 
@@ -450,6 +466,11 @@ static char * disassemble (word18 ins)
     word6 OPCODE = getbits18 (ins, 3, 6);
     strcpy (result, opcTable [OPCODE] . name);
     return result;
+  }
+
+static void doFault (void)
+  {
+    // more later
   }
 
 t_stat sim_instr (void)
@@ -507,10 +528,7 @@ t_stat sim_instr (void)
                 // XXX do CAF; break out into R,W,RMW
                 break;
               }
-            case opcG1a:
-            case opcG1b:
-            case opcG1c:
-            case opcG1d:
+            case opcG1:
               {
                 S1 = getbits18 (ins, 0, 3);
                 D = getbits18 (ins, 9, 9);
@@ -528,88 +546,449 @@ t_stat sim_instr (void)
         switch (OPCODE)
           {
             case 000: // illegal
+              break;
+
             case 001: // MPF
+              break;
+
             case 002: // ADCX2
+              break;
+
             case 003: // LDX2
+              break;
+
             case 004: // LDAQ
+              break;
+
             case 005: // ill
+              break;
+
             case 006: // ADA
+              break;
+
             case 007: // LDA
+              break;
+
 
 // 10 - 17
             case 010: // TSY
+              break;
+
             case 011: // ill
+              break;
+
             case 012: // grp1d
+              {
+                switch (S1)
+                  {
+                    case 0:  // RIER
+                      break;
+
+                    case 4:  // RIA
+                      break;
+
+                    default:
+                      doFault ();
+                  } // switch (S1)
+              }
+              break;
+
             case 013: // STX2
+              break;
+
             case 014: // STAQ
+              break;
+
             case 015: // ADAQ
+              break;
+
             case 016: // ASA
+              break;
+
             case 017: // STA
+              break;
+
 
 // 20 - 27
             case 020: // SZN
+              break;
+
             case 021: // DVF
+              break;
+
             case 022: // grp1b
+              {
+                switch (S1)
+                  {
+                    case 0:  // IANA
+                      break;
+
+                    case 1:  // IORA
+                      break;
+
+                    case 2:  // ICANA
+                      break;
+
+                    case 3:  // IERA
+                      break;
+
+                    case 4:  // ICMPA
+                      break;
+
+                    default:
+                      doFault ();
+                  } // switch (S1)
+              }
+              break;
+
             case 023: // CMPX2
+              break;
+
             case 024: // SBAQ
+              break;
+
             case 025: // ill
+              break;
+
             case 026: // SBA
+              break;
+
             case 027: // CMPA
+              break;
+
 
 // 30 - 37
             case 030: // LDEX
+              break;
+
             case 031: // CANA
+              break;
+
             case 032: // ANSA
+              break;
+
             case 033: // grp2
+              {
+                switch (S1)
+                  {
+                    case 0:
+                      {
+                        switch (S2)
+                          {
+                            case 2: // CAX2
+                             break;
+
+                            case 4: // LLS
+                             break;
+
+                            case 5: // LRS
+                             break;
+
+                            case 6: // ALS
+                             break;
+
+                            case 7: // ARS
+                             break;
+
+                            default:
+                              doFault ();
+                          } // switch (S2)
+                      }
+                      break;
+
+                    case 1:
+                      {
+                        switch (S2)
+                          {
+                            case 4: // NRML
+                             break;
+
+                            case 6: // NRM
+                             break;
+
+                            default:
+                              doFault ();
+                          } // switch (S2)
+                      }
+                      break;
+
+                    case 2:
+                      {
+                        switch (S2)
+                          {
+                            case 1: // NOP
+                             break;
+
+                            case 2: // CX1A
+                              break;
+
+                            case 4: // LLR
+                              break;
+
+                            case 5: // LRL
+                              break;
+
+                            case 6: // ALR
+                              break;
+
+                            case 7: // ARL
+                              break;
+
+                            default:
+                              doFault ();
+                          } // switch (S2)
+                      }
+                      break;
+
+                    case 3:
+                      {
+                        switch (S2)
+                          {
+                            case 1: // INH
+                              break;
+
+                            case 2: // CX2A
+                              break;
+
+                            case 3: // CX3A // XXX this may be a dd01 typo 2,33,3 fits the pattern
+                              break;
+
+                            case 6: // ALP
+                              break;
+
+                            default:
+                              doFault ();
+                          } // switch (S2)
+                      }
+                      break;
+
+                    case 4:
+                      {
+                        switch (S2)
+                          {
+                            case 1: // DIS
+                             break;
+
+                            case 2: // CAX1
+                             break;
+
+                            case 3: // CAX3
+                             break;
+
+                            case 6: // QLS
+                             break;
+
+                            case 7: // QRS
+                              break;
+
+                            default:
+                              doFault ();
+                          } // switch (S2)
+                      }
+                      break;
+
+                    case 6:
+                      {
+                        switch (S2)
+                          {
+                            case 3: // CAQ
+                              break;
+
+                            case 6: // QLR
+                              break;
+
+                            case 7: // QRL
+                              break;
+
+                            default:
+                              doFault ();
+                          } // switch (S2)
+                      }
+                      break;
+
+                    case 7:
+                      {
+                        switch (S2)
+                          {
+                            case 1: // ENI
+                              break;
+
+                            case 3: // CQA
+                              break;
+
+                            case 6: // QLP
+                              break;
+
+                            default:
+                              doFault ();
+                          } // switch (S2)
+                      }
+                      break;
+
+                    default:
+                      doFault ();
+                  } // switch (S1)
+              }
+              break;
+
             case 034: // ANA
+              break;
+
             case 035: // ERA
+              break;
+
             case 036: // SSA
+              break;
+
             case 037: // ORA
+              break;
+
 
 // 40 - 47
             case 040: // ADCX3
+              break;
+
             case 041: // LDX3
+              break;
+
             case 042: // ADCX1
+              break;
+
             case 043: // LDX1
+              break;
+
             case 044: // LDI
+              break;
+
             case 045: // TNC
+              break;
+
             case 046: // ADQ
+              break;
+
             case 047: // LDQ
+              break;
+
 
 // 50 - 57
             case 050: // STX3
+              break;
+
             case 051: // ill
+              break;
+
             case 052: // grp1c
+              {
+                switch (S1)
+                  {
+                    case 0:  // SIER
+                      break;
+
+                    case 4:  // SIC
+                      break;
+
+                    default:
+                      doFault ();
+                  } // switch (S1)
+              }
+              break;
+
             case 053: // STX1
+              break;
+
             case 054: // STI
+              break;
+
             case 055: // TOV
+              break;
+
             case 056: // STZ
+              break;
+
             case 057: // STQ
+              break;
+
 
 // 60 - 67
             case 060: // CIOC
+              break;
+
             case 061: // CMPX3
+              break;
+
             case 062: // ERSA
+              break;
+
             case 063: // CMPX1
+              break;
+
             case 064: // TNZ
+              break;
+
             case 065: // TPL
+              break;
+
             case 066: // SBQ
+              break;
+
             case 067: // CMPQ
+              break;
+
 
 // 70 - 77
             case 070: // STEX
-            case 071: // TRA
-            case 072: // ORSA
-            case 073: // grp1a
-            case 074: // TZE
-            case 075: // TMI
-            case 076: // AOS
-            case 077: // ill
+              break;
 
-            default:
+            case 071: // TRA
+              break;
+
+            case 072: // ORSA
+              break;
+
+            case 073: // grp1a
               {
-                //XXX
+                switch (S1)
+                  {
+                    case 0:  // SEL
+                      break;
+
+                    case 1:  // IACX1
+                      break;
+
+                    case 2:  // IACX2
+                      break;
+
+                    case 3:  // IACX3
+                      break;
+
+                    case 4:  // ILQ
+                      break;
+
+                    case 5:  // IAQ
+                      break;
+
+                    case 6:  // ILA
+                      break;
+
+                    case 7:  // IAA
+                      break;
+
+                  } // switch (S1)
               }
+              break;
+
+            case 074: // TZE
+              break;
+
+            case 075: // TMI
+              break;
+
+            case 076: // AOS
+              break;
+
+            case 077: // ill
+              break;
+
           }
 
 // Instruction times vary from 1 us up.
