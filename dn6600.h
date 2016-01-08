@@ -97,16 +97,6 @@ typedef struct
 
 extern cpu_t cpu;
 
-// some char position defines
-#define W       0
-#define DW      1   // double word
-#define B_0     2
-#define B_1     3
-#define C_0     4
-#define C_1     5
-#define C_2     6
-#define U_7     7   // canonical illegal access
-
 // FAULTS
 
 // Fault vector memory locations

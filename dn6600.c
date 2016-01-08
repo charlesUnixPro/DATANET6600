@@ -2,6 +2,7 @@
 #include <stdbool.h>
 
 #include "dn6600.h"
+#include "dn6600_caf.h"
 #include "coupler.h"
 
 char sim_name [] = "dn6600";
@@ -340,7 +341,7 @@ struct opc_t
 // prepare address is implied by grp == opcMR
 // opcRD operand read
 // oprWR operand write
-    bool opcRD, opcWR;
+    bool opRD, opWR;
     enum { opW, opDW } opSize;
 
 #define OP_CA    false, false, opW
@@ -502,6 +503,11 @@ t_stat sim_instr (void)
         word3 S1 = 0;
         word3 S2 = 0;
         word6 K = 0;
+        word15 W = 0;
+        word3 C = 0;
+        word18 Y = 0;
+        word36 YY = 0;
+
         switch (opcTable [OPCODE] . grp)
           {
             case opcILL:
@@ -509,14 +515,27 @@ t_stat sim_instr (void)
                 // XXX fault illegal opcode
                 break;
               }
+
             case opcMR:
               {
                 I = getbits18 (ins, 0, 1);
                 T = getbits18 (ins, 1, 2);
                 D = getbits18 (ins, 9, 9);
-                // XXX do CAF; break out into R,W,RMW
+                doCAF (& cpu, I, T, D, & W, & C);
+                if (opcTable [OPCODE] . opRD)
+                  {
+                    if (opcTable [OPCODE] . opSize == opW)
+                      {
+                        Y = fromMemory (& cpu, W, C);
+                      }
+                    else if (opcTable [OPCODE] . opSize == opDW)
+                      {
+                        YY = fromMemory36 (& cpu, W, C);
+                      }
+                  }
                 break;
               }
+
             case opcG1:
               {
                 S1 = getbits18 (ins, 0, 3);
@@ -1025,6 +1044,22 @@ t_stat sim_instr (void)
               ILL;
 
           }
+
+        if (opcTable [OPCODE] . grp == opcMR)
+          {
+            if (opcTable [OPCODE] . opWR)
+              {
+                if (opcTable [OPCODE] . opSize == opW)
+                  {
+                    toMemory (& cpu, Y, W, C);
+                  }
+                else if (opcTable [OPCODE] . opSize == opDW)
+                  {
+                    toMemory36 (& cpu, YY, W, C);
+                  }
+              }
+          }
+
 
 // Instruction times vary from 1 us up.
         usleep (1);
