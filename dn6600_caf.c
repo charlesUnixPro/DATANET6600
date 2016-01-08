@@ -275,9 +275,14 @@ int CAARmatrix[8][8] =
  */
 bool addAddr32(int wx, word3 cx, int wy, word3 cy, word15 *wz, word3 *cz)
 {
+    sim_debug(DBG_DEBUG, &cpuDev, "addAddr32 wx %05o cx %o wy %05o cy %o\n",
+              wx, cx, wy, cy);
+
     word15 w = wx + wy;  // calculate word address (ignoring carry/overflow for now)
+    sim_debug(DBG_DEBUG, &cpuDev, "addAddr32 w %05o\n", w);
     
     word3 c = CAARmatrix[cx & BITS3][cy & BITS3]; // determine character fractional address
+    sim_debug(DBG_DEBUG, &cpuDev, "addAddr32 c %o\n", c);
     
     if (c == 7)
     {
@@ -285,12 +290,16 @@ bool addAddr32(int wx, word3 cx, int wy, word3 cy, word15 *wz, word3 *cz)
         return false;
     }
     if (c & 010)  // add FA carry to word address if necessary
+    {
         w += 1;
+        sim_debug(DBG_DEBUG, &cpuDev, "addAddr32 FA carry; w now %05o\n", w);
+    }
 
     w &= BITS15;  // return only 15-bits for address
     
     *wz = w;      // return word address
     *cz = c;      // return char address
+    sim_debug(DBG_DEBUG, &cpuDev, "addAddr32 return %05o %o\n", w, c);
     return true;
 }
 

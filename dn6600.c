@@ -128,6 +128,7 @@ static UNIT cpu_unit =
 
 static DEBTAB cpu_dt[] = 
   {
+    { "DEBUG",      DBG_DEBUG       },
     { "TRACE",      DBG_TRACE       },
     { "REG",        DBG_REG         },
     { "FINAL",      DBG_FINAL       },
@@ -1121,7 +1122,7 @@ t_stat sim_instr (void)
                       // FA (C(X1), D] -> X1
                       {
                         int wx = SIGNEXT6 (D & BITS6);
-                        word3 cx = SIGNEXT15 ((D >> 6) & BITS3);
+                        word3 cx = (D >> 6) & BITS3;
 
                         int wy = SIGNEXT15 (cpu . rX1 & BITS15);
                         word3 cy = (cpu . rX1 >> 15) & BITS3;
@@ -1130,7 +1131,7 @@ t_stat sim_instr (void)
                         word3 cz;
                         addAddr32 (wx, cx, wy, cy, & wz, & cz);
 
-                        cpu . rX1 = ((cy & BITS3) << 15) | (cz & BITS15);
+                        cpu . rX1 = ((cz & BITS3) << 15) | (wz & BITS15);
                         SCF (cpu . rX1 == 0, cpu . rIR, I_ZERO);
                       }
                       break;
@@ -1140,7 +1141,7 @@ t_stat sim_instr (void)
                       // FA (C(X2), D] -> X2
                       {
                         int wx = SIGNEXT6 (D & BITS6);
-                        word3 cx = SIGNEXT15 ((D >> 6) & BITS3);
+                        word3 cx = (D >> 6) & BITS3;
 
                         int wy = SIGNEXT15 (cpu . rX2 & BITS15);
                         word3 cy = (cpu . rX2 >> 15) & BITS3;
@@ -1149,7 +1150,7 @@ t_stat sim_instr (void)
                         word3 cz;
                         addAddr32 (wx, cx, wy, cy, & wz, & cz);
 
-                        cpu . rX2 = ((cy & BITS3) << 15) | (cz & BITS15);
+                        cpu . rX2 = ((cz & BITS3) << 15) | (wz & BITS15);
                         SCF (cpu . rX2 == 0, cpu . rIR, I_ZERO);
                       }
                       break;
@@ -1159,7 +1160,7 @@ t_stat sim_instr (void)
                       // FA (C(X3), D] -> X3
                       {
                         int wx = SIGNEXT6 (D & BITS6);
-                        word3 cx = SIGNEXT15 ((D >> 6) & BITS3);
+                        word3 cx = (D >> 6) & BITS3;
 
                         int wy = SIGNEXT15 (cpu . rX3 & BITS15);
                         word3 cy = (cpu . rX3 >> 15) & BITS3;
@@ -1168,7 +1169,7 @@ t_stat sim_instr (void)
                         word3 cz;
                         addAddr32 (wx, cx, wy, cy, & wz, & cz);
 
-                        cpu . rX3 = ((cy & BITS3) << 15) | (cz & BITS15);
+                        cpu . rX3 = ((cz & BITS3) << 15) | (wz & BITS15);
                         SCF (cpu . rX3 == 0, cpu . rIR, I_ZERO);
                       }
                       break;
