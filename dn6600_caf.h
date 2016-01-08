@@ -19,7 +19,7 @@ word36 fromMemory36(cpu_t *cpu, word15 addr, int charaddr);
 void toMemory  (cpu_t *cpu, word18 data, word15 addr, word3 charaddr);
 void toMemory36(cpu_t *cpu, word36 data, word15 addr, word3 charaddr);
 
-bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word2 *c, word18 *w);
+bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word15 *w, word3 *c);
 
 word18 readITD  (cpu_t *cpu, bool i, word2 t, word9 d);
 word36 readITD36(cpu_t *cpu, bool i, word2 t, word9 d);

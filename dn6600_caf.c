@@ -292,7 +292,7 @@ getT(cpu_t *cpu, word2 t, word15 rICorZero, word3 *c, word15 *w)
 /*
  * returns final word and character addresses used by memory reference instructions
  */
-bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word3 *w, word18 *c)
+bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word15 *w, word3 *c)
 {
     word3 ct = 0;                               // default to word addressing
     word15 wt;
