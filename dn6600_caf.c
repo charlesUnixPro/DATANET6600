@@ -328,15 +328,20 @@ getT(cpu_t *cpu, word2 t, word15 rICorZero, word3 *c, word15 *w)
  */
 bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word15 *w, word3 *c)
 {
+    sim_debug(DBG_CAF, &cpuDev, "CAF entry: I %d T %o D %03o\n",
+              i ? 1 : 0, t, d);
     word3 ct = 0;                               // default to word addressing
     word15 wt;
     
-    if (t == 0)                                 // word addressing
+    if (t == 0) {                               // word addressing
         wt = (SIGNEXT9(d & BITS9) + cpu->rIC) & BITS15;    // word displacement is all 9-bits of displacement field
+        sim_debug(DBG_CAF, &cpuDev, "word addressing; wt %05o\n", wt);
+    }
     else
     {                                           // possible char addressing
         getT(cpu, t, cpu->rIC, &ct, &wt);       // fetch T modification
         int32_t w6 = SIGNEXT6(d & BITS6);       // word displacement is lower 6-bits of 9-bit displacement field
+        sim_debug(DBG_CAF, &cpuDev, "potential non-word addressing; w6 %05o\n", w6);
         word3 c6 = (d >> 6) & BITS3;            // char address is upper 3-bits of 9-bit displacement field
         if (addAddr32(wt, ct, w6, c6, &wt, &ct) == false)
             return false;                       // some error occured
@@ -372,6 +377,7 @@ bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word15 *w, word3 *c)
     
     *c = ct;
     *w = Y;
+    sim_debug(DBG_CAF, &cpuDev, "CAF Exit C %o W %05o\n", ct, Y);
     return true;    // everything hunky-dorey
 }
 

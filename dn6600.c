@@ -130,6 +130,7 @@ static DEBTAB cpu_dt[] =
     { "TRACE",      DBG_TRACE       },
     { "REG",        DBG_REG         },
     { "FINAL",      DBG_FINAL       },
+    { "CAF",        DBG_CAF         },
     { NULL,         0               }
   };
 
@@ -546,7 +547,12 @@ t_stat sim_instr (void)
                 I = getbits18 (ins, 0, 1);
                 T = getbits18 (ins, 1, 2);
                 D = getbits18 (ins, 9, 9);
-                doCAF (& cpu, I, T, D, & W, & C);
+                bool ok = doCAF (& cpu, I, T, D, & W, & C);
+                if (! ok)
+                  {
+                    sim_printf ("doCAF failed\n");
+                    longjmp (jmpMain, JMP_STOP);
+                  }
                 if (opcTable [OPCODE] . opRD)
                   {
                     if (opcTable [OPCODE] . opSize == opW)
@@ -1063,7 +1069,8 @@ t_stat sim_instr (void)
 
             case 071: // TRA
               // Transfer unconditionally
-              NEXT_IC = Y;
+              NEXT_IC = W;
+              sim_debug (DBG_DEBUG, & cpuDev, "TRA %05o\n", NEXT_IC);
               break;
 
             case 072: // ORSA
