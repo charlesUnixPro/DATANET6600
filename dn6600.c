@@ -453,9 +453,11 @@ static char * disassemble (word18 ins)
 
 void doFault (int f, const char * msg)
   {
-    fprintf(stderr, "fault %05o : %s\n", f, msg);
+    //fprintf(stderr, "fault %05o : %s\n", f, msg);
+    sim_printf ("fault %05o : %s\n", f, msg);
     // more later
-    longjmp (jmpMain, JMP_REENTRY);
+    //longjmp (jmpMain, JMP_REENTRY);
+    longjmp (jmpMain, JMP_STOP);
   }
 
 static void doUnimp (word6 opc) NO_RETURN;
@@ -1059,7 +1061,9 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 071: // TRA
-              UNIMP;
+              // Transfer unconditionally
+              NEXT_IC = Y;
+              break;
 
             case 072: // ORSA
               UNIMP;
