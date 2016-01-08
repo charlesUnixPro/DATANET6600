@@ -573,6 +573,7 @@ t_stat sim_instr (void)
               {
                 S1 = getbits18 (ins, 0, 3);
                 D = getbits18 (ins, 9, 9);
+                sim_debug (DBG_DEBUG, & cpuDev, "grp1 S1 %o D %03o\n", S1, D);
                 break;
               }
             case opcG2:
@@ -1124,6 +1125,9 @@ t_stat sim_instr (void)
                         int wx = SIGNEXT6 (D & BITS6);
                         word3 cx = (D >> 6) & BITS3;
 
+if (D & 040) // if bit 12 (sign) set
+  cx = ~cx;
+
                         int wy = SIGNEXT15 (cpu . rX1 & BITS15);
                         word3 cy = (cpu . rX1 >> 15) & BITS3;
 
@@ -1142,6 +1146,9 @@ t_stat sim_instr (void)
                       {
                         int wx = SIGNEXT6 (D & BITS6);
                         word3 cx = (D >> 6) & BITS3;
+
+if (D & 040) // if bit 12 (sign) set
+  cx = ~cx;
 
                         int wy = SIGNEXT15 (cpu . rX2 & BITS15);
                         word3 cy = (cpu . rX2 >> 15) & BITS3;
@@ -1162,6 +1169,9 @@ t_stat sim_instr (void)
                         int wx = SIGNEXT6 (D & BITS6);
                         word3 cx = (D >> 6) & BITS3;
 
+if (D & 040) // if bit 12 (sign) set
+  cx = ~cx;
+
                         int wy = SIGNEXT15 (cpu . rX3 & BITS15);
                         word3 cy = (cpu . rX3 >> 15) & BITS3;
 
@@ -1175,14 +1185,26 @@ t_stat sim_instr (void)
                       break;
 
                     case 4:  // ILQ
-                      UNIMP;
+                      // Immediate Load Q
+                      cpu . rQ = SIGNEXT9 (D & 0777) & BITS18;
+                      SCF (cpu . rQ == 0, cpu . rIR, I_ZERO);
+                      SCF (getbits18 (cpu . rQ, 0, 1) == 1, cpu . rIR, I_NEG);
+                      break;
 
                     case 5:  // IAQ
-                      UNIMP;
+                      // Immediate Add Q
+                      {
+                        word18 tmp = SIGNEXT9 (D & 0777) & BITS18;
+                        bool ovf;
+                        word18 res = Add18b (cpu . rQ, tmp, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                       & cpu . rQ, & ovf);
+                        //if (ovf and fault) XXX
+                      }
+                      break;
 
                     case 6:  // ILA
                       // Immediate Load A
-                      cpu . rA = D & 0777;
+                      cpu . rA = SIGNEXT9 (D & 0777) & BITS18;
                       SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
                       SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
                       break;
