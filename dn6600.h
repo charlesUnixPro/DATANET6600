@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <setjmp.h>
 #include "sim_defs.h"
 
 #ifdef __GNUC__
@@ -114,5 +115,13 @@ enum
 
 #define DBG_DEBUG       (1U << 0)
 #define DBG_TRACE       (1U << 1)
+
+// JMP_ENTRY must be 0, which is the return value of the setjmp initial
+// entry
+#define JMP_ENTRY       0
+#define JMP_REENTRY     1
+#define JMP_STOP        2
+
+extern jmp_buf jmpMain;
 
 void doFault (int f, const char * msg) NO_RETURN;

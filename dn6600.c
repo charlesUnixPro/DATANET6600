@@ -8,7 +8,6 @@
 char sim_name [] = "dn6600";
 int32 sim_emax = 1;
 // DEVICE *sim_devices[] table of pointers to simulated devices, NULL terminated
-// char *sim_stop_messages[] table of pointers to error messages
 // t_stat sim_load (…) binary loader subroutine
 // t_stat parse_sym (…) symbolic instruction parse subroutine
 // t_stat fprint_sym (…) symbolic instruction print subroutine 
@@ -250,12 +249,13 @@ static DEVICE cpuDev =
 DEVICE * sim_devices [] =
   {
     & cpuDev,
-    & couplerDev
+    & couplerDev,
+    NULL
   };
 
 const char * sim_stop_messages [] =
   {
-// XXX
+    "Stop"
   };
 
 t_stat sim_load (FILE * fileref, char * cptr, char * fnam, int flag)
@@ -453,7 +453,7 @@ void doFault (int f, const char * msg)
   {
     fprintf(stderr, "fault %05o : %s\n", f, msg);
     // more later
-    exit (1);
+    longjmp (jmpMain, JMP_REENTRY);
   }
 
 static void doUnimp (word6 opc) NO_RETURN;
@@ -462,12 +462,29 @@ static void doUnimp (word6 opc)
   {
     sim_printf ("unimplemented %02o\n", opc);
     // more later
-    exit (1);
+    longjmp (jmpMain, JMP_STOP);
   }
+
+jmp_buf jmpMain;
 
 t_stat sim_instr (void)
   {
-    int reason = 0;
+    static int reason = 0;
+
+    int val = setjmp (jmpMain);
+    switch (val)
+      {
+        case JMP_ENTRY:
+        case JMP_REENTRY:
+          reason = 0;
+          break;
+        case JMP_STOP:
+          goto leave;
+        default:
+          sim_printf ("longjmp value of %d unhandled\n", val);
+          goto leave;
+      }
+
     do
       {
         if (sim_interval <= 0)
@@ -1117,6 +1134,10 @@ t_stat sim_instr (void)
 
       }
     while (reason == 0);
+
+leave:
+    sim_printf("\nsimCycles = %0.0lf\n", sim_gtime ());
+
     return reason;
   }
 
