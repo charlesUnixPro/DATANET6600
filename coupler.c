@@ -1,4 +1,4 @@
-#include "global.h"
+#include "dn6600.h"
 #include "coupler.h"
 #include "udplib.h"
 

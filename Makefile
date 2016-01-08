@@ -3,8 +3,8 @@ include Makefile.mk
 CFLAGS += -I./simh_7ad57d7
 LDFLAGS += -ldl
 
-C_SRCS = dn6600.c udplib.c coupler.c
-H_SRCS = coupler.h  global.h  udplib.h ipc.h
+C_SRCS = dn6600.c udplib.c coupler.c dn6600_caf.c
+H_SRCS = coupler.h  dn6600.h  udplib.h ipc.h dn6600_caf.h
 
 OBJS  := $(patsubst %.c,%.o,$(C_SRCS))
 

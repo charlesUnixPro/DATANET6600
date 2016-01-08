@@ -1,12 +1,8 @@
 #include <unistd.h>
 #include <stdbool.h>
 
-#include "global.h"
+#include "dn6600.h"
 #include "coupler.h"
-
-static word18 M [MEM_SIZE];
-
-
 
 char sim_name [] = "dn6600";
 int32 sim_emax = 1;
@@ -89,22 +85,19 @@ int32 sim_emax = 1;
 // K        Operation value: This field is used for such functions as shift
 //          counts.
 
-static word15 IC;
-static word18 X [3];
-static word18 A, Q;
-static word18 I;
-static word18 S;
+cpu_t cpu;
 
 static REG cpu_reg [] =
   {
-    {ORDATA (IC, IC,    ASZ), 0, 0}, // Must be first, per simh
-    {ORDATA (X1, X [0], WSZ), 0, 0},
-    {ORDATA (X2, X [1], WSZ), 0, 0},
-    {ORDATA (X3, X [1], WSZ), 0, 0},
-    {ORDATA (A,  A,     WSZ), 0, 0},
-    {ORDATA (Q,  Q,     WSZ), 0, 0},
-    {ORDATA (I,  I,     8),   0, 0}, // Indicator register
-    {ORDATA (S,  S,     6),   0, 0}, // I/O channel select register
+    {ORDATA (IC, cpu . rIC,    ASZ), 0, 0}, // Must be first, per simh
+    {ORDATA (X1, cpu . rX1,    WSZ), 0, 0},
+    {ORDATA (X2, cpu . rX2,    WSZ), 0, 0},
+    {ORDATA (X3, cpu . rX3,    WSZ), 0, 0},
+    {ORDATA (A,  cpu . rA,     WSZ), 0, 0},
+    {ORDATA (Q,  cpu . rQ,     WSZ), 0, 0},
+    {ORDATA (IR, cpu . rIR,    8),   0, 0}, // Indicator register
+    {ORDATA (S,  cpu . rS,     6),   0, 0}, // I/O channel select register
+    {ORDATA (II, cpu . rII,    1),   0, 0}, // interrupt inhibit
     NULL
   };
 
@@ -166,21 +159,6 @@ static DEVICE cpuDev =
     NULL,           // attach help
     NULL,           // help context
     NULL            // description
-  };
-
-// FAULTS
-
-// Fault vector memory locations
-enum 
-  {
-    faultPowerShutdownBeginning = 0440,
-    faultRestart =                0441,
-    faultParity =                 0442,
-    faultIllegalOpcode =          0443,
-    faultOverflow =               0444,
-    faultIllegalStore =           0445,
-    faultDivideCheck =            0446,
-    faultIllegalProgramInt =      0447
   };
 
 // ADDRESS FORMATION
@@ -262,7 +240,7 @@ enum
 //  -------------------------------------------------------------------
 //  | T=00  |  Y**=IC+D    |  Y*=C(IC+D)  |  Y**=Y     |  Y*=C(Y)     |
 //  | T=01  |  Y**=X1+D    |  Y*=C(X1+D)  |  Y**=X1+Y  |  Y*=C(X1+Y)  |
-//  | T=02  |  Y**=X2+D    |  Y*=C(X2+D)  |  Y**=X2+Y  |  Y*=C(X3+Y)  |
+//  | T=02  |  Y**=X2+D    |  Y*=C(X2+D)  |  Y**=X2+Y  |  Y*=C(X2+Y)  |
 //  | T=03  |  Y**=X3+D    |  Y*=C(X3+D)  |  Y**=X3+Y  |  Y*=C(X3+Y)  |
 //  -------------------------------------------------------------------
 
@@ -468,9 +446,20 @@ static char * disassemble (word18 ins)
     return result;
   }
 
-static void doFault (void)
+void doFault (int f, const char * msg)
   {
+    fprintf(stderr, "fault %05o : %s\n", f, msg);
     // more later
+    exit (1);
+  }
+
+static void doUnimp (word6 opc) NO_RETURN;
+
+static void doUnimp (word6 opc)
+  {
+    sim_printf ("unimplemented %02o\n", opc);
+    // more later
+    exit (1);
   }
 
 t_stat sim_instr (void)
@@ -503,8 +492,8 @@ t_stat sim_instr (void)
         // Fetch the next instruction, increment the PC, optionally decode the
         // address, and dispatch (via a switch statement) for execution.        
 
-        word18 ins = M [IC];
-        sim_debug (DBG_TRACE, & cpuDev, "%05o %06o %s\n", IC, ins, disassemble (ins));
+        word18 ins = cpu . M [cpu . rIC];
+        sim_debug (DBG_TRACE, & cpuDev, "%05o %06o %s\n", cpu . rIC, ins, disassemble (ins));
 
         word6 OPCODE = getbits18 (ins, 3, 6);
         word1 I = 0;
@@ -543,129 +532,132 @@ t_stat sim_instr (void)
               }
           }
 
+#define ILL doFault (faultIllegalOpcode, "illegal opcode")
+#define UNIMP doUnimp (OPCODE);
+
         switch (OPCODE)
           {
             case 000: // illegal
-              break;
+              ILL;
 
             case 001: // MPF
-              break;
+              UNIMP;
 
             case 002: // ADCX2
-              break;
+              UNIMP;
 
             case 003: // LDX2
-              break;
+              UNIMP;
 
             case 004: // LDAQ
-              break;
+              UNIMP;
 
             case 005: // ill
-              break;
+              ILL;
 
             case 006: // ADA
-              break;
+              UNIMP;
 
             case 007: // LDA
-              break;
+              UNIMP;
 
 
 // 10 - 17
             case 010: // TSY
-              break;
+              UNIMP;
 
             case 011: // ill
-              break;
+              ILL;
 
             case 012: // grp1d
               {
                 switch (S1)
                   {
                     case 0:  // RIER
-                      break;
+                      UNIMP;
 
                     case 4:  // RIA
-                      break;
+                      UNIMP;
 
                     default:
-                      doFault ();
+                      ILL;
                   } // switch (S1)
               }
               break;
 
             case 013: // STX2
-              break;
+              UNIMP;
 
             case 014: // STAQ
-              break;
+              UNIMP;
 
             case 015: // ADAQ
-              break;
+              UNIMP;
 
             case 016: // ASA
-              break;
+              UNIMP;
 
             case 017: // STA
-              break;
+              UNIMP;
 
 
 // 20 - 27
             case 020: // SZN
-              break;
+              UNIMP;
 
             case 021: // DVF
-              break;
+              UNIMP;
 
             case 022: // grp1b
               {
                 switch (S1)
                   {
                     case 0:  // IANA
-                      break;
+                      UNIMP;
 
                     case 1:  // IORA
-                      break;
+                      UNIMP;
 
                     case 2:  // ICANA
-                      break;
+                      UNIMP;
 
                     case 3:  // IERA
-                      break;
+                      UNIMP;
 
                     case 4:  // ICMPA
-                      break;
+                      UNIMP;
 
                     default:
-                      doFault ();
+                      ILL;
                   } // switch (S1)
               }
               break;
 
             case 023: // CMPX2
-              break;
+              UNIMP;
 
             case 024: // SBAQ
-              break;
+              UNIMP;
 
             case 025: // ill
-              break;
+              ILL;
 
             case 026: // SBA
-              break;
+              UNIMP;
 
             case 027: // CMPA
-              break;
+              UNIMP;
 
 
 // 30 - 37
             case 030: // LDEX
-              break;
+              UNIMP;
 
             case 031: // CANA
-              break;
+              UNIMP;
 
             case 032: // ANSA
-              break;
+              UNIMP;
 
             case 033: // grp2
               {
@@ -676,22 +668,24 @@ t_stat sim_instr (void)
                         switch (S2)
                           {
                             case 2: // CAX2
-                             break;
+                              // Copy A into X2
+                              cpu . rX2 = cpu . rA;
+                              break;
 
                             case 4: // LLS
-                             break;
+                             UNIMP;
 
                             case 5: // LRS
-                             break;
+                             UNIMP;
 
                             case 6: // ALS
-                             break;
+                             UNIMP;
 
                             case 7: // ARS
-                             break;
+                             UNIMP;
 
                             default:
-                              doFault ();
+                              ILL;
                           } // switch (S2)
                       }
                       break;
@@ -701,13 +695,13 @@ t_stat sim_instr (void)
                         switch (S2)
                           {
                             case 4: // NRML
-                             break;
+                             UNIMP;
 
                             case 6: // NRM
-                             break;
+                             UNIMP;
 
                             default:
-                              doFault ();
+                              ILL;
                           } // switch (S2)
                       }
                       break;
@@ -717,25 +711,28 @@ t_stat sim_instr (void)
                         switch (S2)
                           {
                             case 1: // NOP
-                             break;
+                              // No Operation
+                              break;
 
                             case 2: // CX1A
+                              // Copy X1 into A
+                              cpu . rA = cpu . rX1;
                               break;
 
                             case 4: // LLR
-                              break;
+                              UNIMP;
 
                             case 5: // LRL
-                              break;
+                              UNIMP;
 
                             case 6: // ALR
-                              break;
+                              UNIMP;
 
                             case 7: // ARL
-                              break;
+                              UNIMP;
 
                             default:
-                              doFault ();
+                              ILL;
                           } // switch (S2)
                       }
                       break;
@@ -745,19 +742,26 @@ t_stat sim_instr (void)
                         switch (S2)
                           {
                             case 1: // INH
+                              // Interrupt inhibit
+                              // Interrupt inhibit indicator is turned ON
+                              cpu . rII = 1;
                               break;
 
                             case 2: // CX2A
+                              // Copy X2 into A
+                              cpu . rA = cpu . rX2;
                               break;
 
                             case 3: // CX3A // XXX this may be a dd01 typo 2,33,3 fits the pattern
+                              // Copy X3 into A
+                              cpu . rA = cpu . rX3;
                               break;
 
                             case 6: // ALP
-                              break;
+                              UNIMP;
 
                             default:
-                              doFault ();
+                              ILL;
                           } // switch (S2)
                       }
                       break;
@@ -767,22 +771,26 @@ t_stat sim_instr (void)
                         switch (S2)
                           {
                             case 1: // DIS
-                             break;
+                             UNIMP;
 
                             case 2: // CAX1
-                             break;
-
-                            case 3: // CAX3
-                             break;
-
-                            case 6: // QLS
-                             break;
-
-                            case 7: // QRS
+                              // Copy A into X1
+                              cpu . rX1 = cpu . rA;
                               break;
 
+                            case 3: // CAX3
+                              // Copy A into X3
+                              cpu . rX3 = cpu . rA;
+                              break;
+
+                            case 6: // QLS
+                             UNIMP;
+
+                            case 7: // QRS
+                              UNIMP;
+
                             default:
-                              doFault ();
+                              ILL;
                           } // switch (S2)
                       }
                       break;
@@ -792,16 +800,18 @@ t_stat sim_instr (void)
                         switch (S2)
                           {
                             case 3: // CAQ
+                              // Copy A into Q
+                              cpu . rQ = cpu . rA;
                               break;
 
                             case 6: // QLR
-                              break;
+                              UNIMP;
 
                             case 7: // QRL
-                              break;
+                              UNIMP;
 
                             default:
-                              doFault ();
+                              ILL;
                           } // switch (S2)
                       }
                       break;
@@ -811,183 +821,188 @@ t_stat sim_instr (void)
                         switch (S2)
                           {
                             case 1: // ENI
+                              // Enable interrupt
+                              // Interrupt inhibit indicator is turned OFF
+                              cpu . rII = 0;
                               break;
 
                             case 3: // CQA
+                              // Copy Q into A
+                              cpu . rA = cpu . rQ;
                               break;
 
                             case 6: // QLP
-                              break;
+                              UNIMP;
 
                             default:
-                              doFault ();
+                              ILL;
                           } // switch (S2)
                       }
                       break;
 
                     default:
-                      doFault ();
+                      ILL;
                   } // switch (S1)
               }
               break;
 
             case 034: // ANA
-              break;
+              UNIMP;
 
             case 035: // ERA
-              break;
+              UNIMP;
 
             case 036: // SSA
-              break;
+              UNIMP;
 
             case 037: // ORA
-              break;
+              UNIMP;
 
 
 // 40 - 47
             case 040: // ADCX3
-              break;
+              UNIMP;
 
             case 041: // LDX3
-              break;
+              UNIMP;
 
             case 042: // ADCX1
-              break;
+              UNIMP;
 
             case 043: // LDX1
-              break;
+              UNIMP;
 
             case 044: // LDI
-              break;
+              UNIMP;
 
             case 045: // TNC
-              break;
+              UNIMP;
 
             case 046: // ADQ
-              break;
+              UNIMP;
 
             case 047: // LDQ
-              break;
+              UNIMP;
 
 
 // 50 - 57
             case 050: // STX3
-              break;
+              UNIMP;
 
             case 051: // ill
-              break;
+              ILL;
 
             case 052: // grp1c
               {
                 switch (S1)
                   {
                     case 0:  // SIER
-                      break;
+                      UNIMP;
 
                     case 4:  // SIC
-                      break;
+                      UNIMP;
 
                     default:
-                      doFault ();
+                      ILL;
                   } // switch (S1)
               }
               break;
 
             case 053: // STX1
-              break;
+              UNIMP;
 
             case 054: // STI
-              break;
+              UNIMP;
 
             case 055: // TOV
-              break;
+              UNIMP;
 
             case 056: // STZ
-              break;
+              UNIMP;
 
             case 057: // STQ
-              break;
+              UNIMP;
 
 
 // 60 - 67
             case 060: // CIOC
-              break;
+              UNIMP;
 
             case 061: // CMPX3
-              break;
+              UNIMP;
 
             case 062: // ERSA
-              break;
+              UNIMP;
 
             case 063: // CMPX1
-              break;
+              UNIMP;
 
             case 064: // TNZ
-              break;
+              UNIMP;
 
             case 065: // TPL
-              break;
+              UNIMP;
 
             case 066: // SBQ
-              break;
+              UNIMP;
 
             case 067: // CMPQ
-              break;
+              UNIMP;
 
 
 // 70 - 77
             case 070: // STEX
-              break;
+              UNIMP;
 
             case 071: // TRA
-              break;
+              UNIMP;
 
             case 072: // ORSA
-              break;
+              UNIMP;
 
             case 073: // grp1a
               {
                 switch (S1)
                   {
                     case 0:  // SEL
-                      break;
+                      UNIMP;
 
                     case 1:  // IACX1
-                      break;
+                      UNIMP;
 
                     case 2:  // IACX2
-                      break;
+                      UNIMP;
 
                     case 3:  // IACX3
-                      break;
+                      UNIMP;
 
                     case 4:  // ILQ
-                      break;
+                      UNIMP;
 
                     case 5:  // IAQ
-                      break;
+                      UNIMP;
 
                     case 6:  // ILA
-                      break;
+                      UNIMP;
 
                     case 7:  // IAA
-                      break;
+                      UNIMP;
 
                   } // switch (S1)
               }
               break;
 
             case 074: // TZE
-              break;
+              UNIMP;
 
             case 075: // TMI
-              break;
+              UNIMP;
 
             case 076: // AOS
-              break;
+              UNIMP;
 
             case 077: // ill
-              break;
+              ILL;
 
           }
 

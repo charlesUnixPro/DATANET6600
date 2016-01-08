@@ -7,13 +7,11 @@
 // Calculates word & character addresses for use bt dn6600
 //
 
+#include <stdio.h>
 #include <stdbool.h>
+#include "dn6600.h"
 #include "dn6600_caf.h"
 
-void doFault(int f, const char *msg)
-{
-    fprintf(stderr, "fault %05o : %s\n", f, msg);
-}
 
 
 static
@@ -58,7 +56,7 @@ word18 fromMemory(cpu_t *cpu, word15 addr, int charaddr)
             //            return even << 18LL | odd;
             //        }
         case 7:
-            doFault(illmemop, "fromMemory(): illegal charaddr");
+            doFault(faultIllegalStore, "fromMemory(): illegal charaddr");
             return 0;
         case 2:
         case 3:
@@ -102,7 +100,7 @@ word36 fromMemory36(cpu_t *cpu, word15 addr, int charaddr)
             return even << 18LL | odd;
         }
         case 7:
-            doFault(illmemop, "fromMemory(): illegal charaddr");
+            doFault(faultIllegalStore, "fromMemory(): illegal charaddr");
             return 0;
         case 2:
         case 3:
@@ -146,7 +144,7 @@ void toMemory(cpu_t *cpu, word18 data, word15 addr, word3 charaddr)
 //            return;
 //        }
         case 7:
-            doFault(illmemop, "to Memory(): illegal charaddr");
+            doFault(faultIllegalStore, "to Memory(): illegal charaddr");
             return;
         case 2:
         case 3:
@@ -196,7 +194,7 @@ void toMemory36(cpu_t *cpu, word36 data36, word15 addr, word3 charaddr)
             return;
         }
         case 7:
-            doFault(illmemop, "to Memory(): illegal charaddr");
+            doFault(faultIllegalStore, "to Memory(): illegal charaddr");
             return;
         case 2:
         case 3:
@@ -250,7 +248,7 @@ bool addAddr32(int wx, word3 cx, int wy, word3 cy, word15 *wz, word3 *cz)
     
     if (c == 7)
     {
-        doFault(illmemop, "addAddr32(): illegal charAddr");
+        doFault(faultIllegalStore, "addAddr32(): illegal charAddr");
         return false;
     }
     if (c & 010)  // add FA carry to word address if necessary
