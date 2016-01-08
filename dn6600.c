@@ -973,7 +973,12 @@ t_stat sim_instr (void)
               break;
 
             case 045: // TNC
-              UNIMP;
+              // Transfer on No Carry
+              if (! TSTF (cpu . rIR, I_CARRY))
+                {
+                  NEXT_IC = W;
+                }
+              break;
 
             case 046: // ADQ
               UNIMP;
@@ -1024,7 +1029,13 @@ t_stat sim_instr (void)
               break;
 
             case 055: // TOV
-              UNIMP;
+              // Transfer on Overflow
+              if (TSTF (cpu . rIR, I_OVF))
+                {
+                  NEXT_IC = W;
+                  CLRF (cpu . rIR, I_OVF);
+                }
+              break;
 
             case 056: // STZ
               // Store Zero
@@ -1051,10 +1062,20 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 064: // TNZ
-              UNIMP;
+              // Transfer on Not Zero
+              if (! TSTF (cpu . rIR, I_ZERO))
+                {
+                  NEXT_IC = W;
+                }
+              break;
 
             case 065: // TPL
-              UNIMP;
+              // Transfer on Plus
+              if (! TSTF (cpu . rIR, I_NEG))
+                {
+                  NEXT_IC = W;
+                }
+              break;
 
             case 066: // SBQ
               UNIMP;
@@ -1113,10 +1134,20 @@ t_stat sim_instr (void)
               break;
 
             case 074: // TZE
-              UNIMP;
+              // Transfer on Zero
+              if (TSTF (cpu . rIR, I_ZERO))
+                {
+                  NEXT_IC = W;
+                }
+              break;
 
             case 075: // TMI
-              UNIMP;
+              // Transfer on Minus
+              if (TSTF (cpu . rIR, I_NEG))
+                {
+                  NEXT_IC = W;
+                }
+              break;
 
             case 076: // AOS
               UNIMP;
