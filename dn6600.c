@@ -566,12 +566,17 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 003: // LDX2
-              UNIMP;
+              // Load X2
+              cpu . rX2 = Y;
+              SCF (cpu . rX2 == 0, cpu . rIR, I_ZERO);
+              break;
 
             case 004: // LDAQ
               // Load AQ
               cpu . rA = (YY >> 18) & BITS18;
               cpu . rQ = (YY >>  0) & BITS18;
+              SCF (cpu . rA == 0 && cpu . rQ == 0, cpu . rIR, I_ZERO);
+              SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
               break;
 
             case 005: // ill
@@ -581,7 +586,11 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 007: // LDA
-              UNIMP;
+              // Load A
+              cpu . rA = Y;
+              SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
+              SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+              break;
 
 
 // 10 - 17
@@ -608,10 +617,14 @@ t_stat sim_instr (void)
               break;
 
             case 013: // STX2
-              UNIMP;
+              // Store X2
+              Y = cpu . rX2;
+              break;
 
             case 014: // STAQ
-              UNIMP;
+              // Store AQ
+              YY = (((word36) cpu . rA) << 18) | cpu . rQ;
+              break;
 
             case 015: // ADAQ
               UNIMP;
@@ -620,7 +633,9 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 017: // STA
-              UNIMP;
+              // Store A
+              Y = cpu . rA;
+              break;
 
 
 // 20 - 27
@@ -906,16 +921,25 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 041: // LDX3
-              UNIMP;
+              // Load X3
+              cpu . rX3 = Y;
+              SCF (cpu . rX3 == 0, cpu . rIR, I_ZERO);
+              break;
 
             case 042: // ADCX1
               UNIMP;
 
             case 043: // LDX1
-              UNIMP;
+              // Load X1
+              cpu . rX1 = Y;
+              SCF (cpu . rX1 == 0, cpu . rIR, I_ZERO);
+              break;
 
             case 044: // LDI
-              UNIMP;
+              // Load I
+              // C(Y) (Bits 0-7, 12-17) -> C(I)
+              cpu . rIR = Y & 0776077;
+              break;
 
             case 045: // TNC
               UNIMP;
@@ -924,11 +948,18 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 047: // LDQ
-              UNIMP;
+              // Load Q
+              cpu . rQ = Y;
+              SCF (cpu . rQ == 0, cpu . rIR, I_ZERO);
+              SCF (getbits18 (cpu . rQ, 0, 1) == 1, cpu . rIR, I_NEG);
+              break;
 
 
 // 50 - 57
             case 050: // STX3
+              // Store X3
+              Y = cpu . rX3;
+              break;
               UNIMP;
 
             case 051: // ill
@@ -951,19 +982,28 @@ t_stat sim_instr (void)
               break;
 
             case 053: // STX1
-              UNIMP;
+              // Store X1
+              Y = cpu . rX1;
+              break;
 
             case 054: // STI
-              UNIMP;
+              // Store I
+              // C(I) (Bits 0-7, 12-17) -> C(Y)
+              Y = cpu . rIR & 0776077;
+              break;
 
             case 055: // TOV
               UNIMP;
 
             case 056: // STZ
-              UNIMP;
+              // Store Zero
+              Y = 0;
+              break;
 
             case 057: // STQ
-              UNIMP;
+              // Store Q
+              Y = cpu . rQ;
+              break;
 
 
 // 60 - 67

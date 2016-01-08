@@ -58,7 +58,7 @@ typedef uint64_t word36;
 #define SETF(flags, x)         flags = ((flags) |  (x))
 #define CLRF(flags, x)         flags = ((flags) & ~(x))
 #define TSTF(flags, x)         ((flags) & (x))
-#define SCF(cond, flags, x)    { if ((cond)) SETF((flags), x); else CLRF((flags), x); }
+#define SCF(cond, flags, x)    { if (cond) SETF((flags), x); else CLRF((flags), x); }
 
 #define I_ZERO  (1u << 17)
 #define I_NEG   (1u << 16)
