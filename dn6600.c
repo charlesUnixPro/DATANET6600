@@ -509,6 +509,7 @@ t_stat sim_instr (void)
         word3 C = 0;
         word18 Y = 0;
         word36 YY = 0;
+        word15 NEXT_IC = (cpu . rIC + 1) & BITS15;
 
         switch (opcTable [OPCODE] . grp)
           {
@@ -1109,6 +1110,7 @@ t_stat sim_instr (void)
               }
           }
 
+        cpu . rIC = NEXT_IC;
 
 // Instruction times vary from 1 us up.
         usleep (1);
