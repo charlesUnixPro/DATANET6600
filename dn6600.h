@@ -116,6 +116,7 @@ enum
 #define DBG_DEBUG       (1U << 0)
 #define DBG_TRACE       (1U << 1)
 #define DBG_REG         (1U << 2)
+#define DBG_FINAL       (1U << 3)
 
 // JMP_ENTRY must be 0, which is the return value of the setjmp initial
 // entry
@@ -124,5 +125,6 @@ enum
 #define JMP_STOP        2
 
 extern jmp_buf jmpMain;
+extern DEVICE cpuDev;
 
 void doFault (int f, const char * msg) NO_RETURN;

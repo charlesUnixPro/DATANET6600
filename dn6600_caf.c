@@ -52,6 +52,8 @@ word18 fromMemory(cpu_t *cpu, word15 addr, int charaddr)
     switch (charaddr)
     {
         case 0: // word addressing
+            sim_debug(DBG_FINAL, &cpuDev, "Read Addr: %05o Data: %06o\n", 
+                      addr, cpu->M[addr] & BITS18);
             return cpu->M[addr] & BITS18;
         case 1: // double-word addressing
             //        {
@@ -83,6 +85,8 @@ word18 fromMemory(cpu_t *cpu, word15 addr, int charaddr)
     
     data >>= ci->shift;                         // right justify
     
+    sim_debug(DBG_FINAL, &cpuDev, "Read Addr: %05o Data: %06o\n", 
+              addr, data & ci->mask1);
     return data & ci->mask1;                    // and present it to the CPU/IOM
 }
 
@@ -96,6 +100,8 @@ word36 fromMemory36(cpu_t *cpu, word15 addr, int charaddr)
     switch (charaddr)
     {
         case 0: // word addressing
+            sim_debug(DBG_FINAL, &cpuDev, "Read Addr: %05o Data: %06o\n", 
+                      addr, cpu->M[addr] & BITS18);
             return cpu->M[addr] & BITS18;
         case 1: // double-word addressing
         {
@@ -105,7 +111,11 @@ word36 fromMemory36(cpu_t *cpu, word15 addr, int charaddr)
             // an even word is the most significant part of a double-precision number
             // the memory location with the lower (even) address contains the most significant part of a double-word address
             word36 even = cpu->M[addr & 077776] & BITS18; // this will force an odd even (Y-1) and leave even alone (Y)
+            sim_debug(DBG_FINAL, &cpuDev, "Read Addr: %05o Data: %06o\n", 
+                      addr & 077776, (word18)even);
             word36 odd  = cpu->M[addr | 000001] & BITS18; // this will force an even odd (Y+1) and leave an odd alone (Y)
+            sim_debug(DBG_FINAL, &cpuDev, "Read Addr: %05o Data: %06o\n", 
+                      addr | 000001, (word18)odd);
 
             return even << 18LL | odd;
         }
@@ -127,6 +137,8 @@ word36 fromMemory36(cpu_t *cpu, word15 addr, int charaddr)
     
     data >>= ci->shift;                         // right justify
     
+    sim_debug(DBG_FINAL, &cpuDev, "Read Addr: %05o Data: %06o\n", 
+              addr, data & ci->mask1);
     return data & ci->mask1;                    // and present it to the CPU/IOM
 }
 
@@ -139,6 +151,8 @@ void toMemory(cpu_t *cpu, word18 data, word15 addr, word3 charaddr)
     {
         case 0:
             cpu->M[addr & BITS15] = data & BITS18;
+            sim_debug(DBG_FINAL, &cpuDev, "Write Addr: %05o Data: %06o\n", 
+                      addr & BITS15, data & BITS18);
             return;
         case 1: // double-word addressing
 //        {
@@ -178,6 +192,8 @@ void toMemory(cpu_t *cpu, word18 data, word15 addr, word3 charaddr)
     word18 newM = (oldM & ~ci->mask2) | data; // mask out previous bits, 'or' in new data
     
     cpu->M[addr] = newM & BITS18;            // write out modified data back to memory
+    sim_debug(DBG_FINAL, &cpuDev, "Write Addr: %05o Data: %06o\n", 
+              addr, newM & BITS18);
 }
 
 void toMemory36(cpu_t *cpu, word36 data36, word15 addr, word3 charaddr)
@@ -189,6 +205,8 @@ void toMemory36(cpu_t *cpu, word36 data36, word15 addr, word3 charaddr)
     {
         case 0:
             cpu->M[addr & BITS15] = data36 & BITS18;
+            sim_debug(DBG_FINAL, &cpuDev, "Write Addr: %05o Data: %06o\n", 
+                      addr & BITS15, (word18) (data36 & BITS18));
             return;
         case 1: // double-word addressing
         {
@@ -199,8 +217,12 @@ void toMemory36(cpu_t *cpu, word36 data36, word15 addr, word3 charaddr)
             // the memory location with the lower (even) address contains the most significant part of a double-word address
             word36 even = (data36 >> 18LL) & BITS18;
             cpu->M[addr & 077776] = (word18)even; // this will force an odd even (Y-1) and leave even alone (Y)
+            sim_debug(DBG_FINAL, &cpuDev, "Write Addr: %05o Data: %06o\n", 
+                      addr & 077776, (word18)even);
             word36 odd  =  data36 & BITS18;
             cpu->M[addr | 000001] = (word18)odd;  // this will force an even odd (Y+1) and leave an odd alone (Y)
+            sim_debug(DBG_FINAL, &cpuDev, "Write Addr: %05o Data: %06o\n", 
+                      addr | 000001, (word18)odd);
             return;
         }
         case 7:
@@ -228,6 +250,8 @@ void toMemory36(cpu_t *cpu, word36 data36, word15 addr, word3 charaddr)
     word18 newM = (oldM & ~ci->mask2) | data18; // mask out previous bits, 'or' in new data
     
     cpu->M[addr] = newM & BITS18;            // write out modified data back to memory
+    sim_debug(DBG_FINAL, &cpuDev, "Write Addr: %05o Data: %06o\n", 
+              addr, newM & BITS18);
 }
 
 /*

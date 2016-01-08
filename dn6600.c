@@ -129,12 +129,13 @@ static DEBTAB cpu_dt[] =
   {
     { "TRACE",      DBG_TRACE       },
     { "REG",        DBG_REG         },
+    { "FINAL",      DBG_FINAL       },
     { NULL,         0               }
   };
 
 static t_stat cpu_boot (UNUSED int32 unit_num, UNUSED DEVICE * dptr);
 
-static DEVICE cpuDev =
+DEVICE cpuDev =
   {
     "CPU",          /* name */
     & cpu_unit,     /* units */
