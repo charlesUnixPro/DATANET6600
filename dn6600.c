@@ -541,7 +541,7 @@ t_stat sim_instr (void)
         // address, and dispatch (via a switch statement) for execution.        
 
         word18 ins = cpu . M [cpu . rIC];
-        sim_debug (DBG_TRACE, & cpuDev, "%05o %06o %s\n", cpu . rIC, ins, disassemble (ins));
+        sim_debug (DBG_TRACE, & cpuDev, "%05o:%06o %s\n", cpu . rIC, ins, disassemble (ins));
         listSource (cpu . rIC);
 
         word6 OPCODE = getbits18 (ins, 3, 6);
@@ -740,7 +740,18 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 024: // SBAQ
-              UNIMP;
+              // Subtract from AQ
+              {
+                bool ovf;
+                word36 tmp = ((word36) (cpu . rA << 18)) | cpu . rQ;
+                word36 res = Sub36b (tmp, YY, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                     & cpu . rIR, & ovf);
+                //if (ovf and fault) XXX
+
+                cpu . rA = (res >> 18) & BITS18;
+                cpu . rQ = res & BITS18;
+              }
+              break;
 
             case 025: // ill
               ILL;
@@ -782,7 +793,20 @@ t_stat sim_instr (void)
                              UNIMP;
 
                             case 6: // ALS
-                             UNIMP;
+                             // A Left Shift
+                             {
+                               // should a shift of 0 clear the carry?
+                               CLRF (cpu . rIR, I_CARRY);
+                               for (uint i = 0; i < K; i ++)
+                                 {
+                                   if (cpu . rA & BIT0)
+                                     SETF (cpu . rIR, I_CARRY);
+                                   cpu . rA = (cpu . rA << 1) & BITS18;
+                                 }
+                               SCF (cpu . rA == 0 && cpu . rQ == 0, cpu . rIR, I_ZERO);
+                               SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+                             }
+                             break;
 
                             case 7: // ARS
                              UNIMP;
@@ -855,7 +879,9 @@ t_stat sim_instr (void)
                               cpu . rA = cpu . rX2;
                               break;
 
-                            case 3: // CX3A // XXX this may be a dd01 typo 2,33,3 fits the pattern
+                            case 3: // CX3A 
+                              // this may be a dd01 typo 2,33,3 fits the pattern -- no, looked
+                              // at interpreter.list; cx3a is 3,33,3
                               // Copy X3 into A
                               cpu . rA = cpu . rX3;
                               break;
@@ -1130,7 +1156,9 @@ t_stat sim_instr (void)
               break;
 
             case 072: // ORSA
-              UNIMP;
+              // OR to storage A
+              Y |= cpu . rA;
+              break;
 
             case 073: // grp1a
               {
@@ -1217,8 +1245,8 @@ if (D & 040) // if bit 12 (sign) set
                       {
                         word18 tmp = SIGNEXT9 (D & 0777) & BITS18;
                         bool ovf;
-                        word18 res = Add18b (cpu . rQ, tmp, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
-                                       & cpu . rQ, & ovf);
+                        cpu . rQ = Add18b (cpu . rQ, tmp, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                           & cpu . rIR, & ovf);
                         //if (ovf and fault) XXX
                       }
                       break;
@@ -1231,7 +1259,15 @@ if (D & 040) // if bit 12 (sign) set
                       break;
 
                     case 7:  // IAA
-                      UNIMP;
+                      // Immediate Add A
+                      {
+                        word18 tmp = SIGNEXT9 (D & 0777) & BITS18;
+                        bool ovf;
+                        cpu . rA = Add18b (cpu . rA, tmp, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                           & cpu . rIR, & ovf);
+                        //if (ovf and fault) XXX
+                      }
+                      break;
 
                   } // switch (S1)
               }
