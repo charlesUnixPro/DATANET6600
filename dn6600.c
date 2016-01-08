@@ -569,7 +569,10 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 004: // LDAQ
-              UNIMP;
+              // Load AQ
+              cpu . rA = (YY >> 18) & BITS18;
+              cpu . rQ = (YY >>  0) & BITS18;
+              break;
 
             case 005: // ill
               ILL;
