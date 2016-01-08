@@ -454,6 +454,26 @@ static char * disassemble (word18 ins)
     return result;
   }
 
+static void listSource (int offset)
+  {
+    FILE * lf = fopen ("gicb.list", "r");
+    if (! lf)
+      return;
+    rewind (lf);
+    char buffer [132];
+    while (fgets (buffer, 132, lf))
+      {
+        int os;
+        sscanf (buffer, "       %5o ", & os);
+        if (os == offset)
+          {
+            sim_debug (DBG_TRACE, & cpuDev, "%s", buffer);
+            break;
+          }
+      }
+    fclose (lf);
+  }
+
 void doFault (int f, const char * msg)
   {
     //fprintf(stderr, "fault %05o : %s\n", f, msg);
@@ -522,6 +542,7 @@ t_stat sim_instr (void)
 
         word18 ins = cpu . M [cpu . rIC];
         sim_debug (DBG_TRACE, & cpuDev, "%05o %06o %s\n", cpu . rIC, ins, disassemble (ins));
+        listSource (cpu . rIC);
 
         word6 OPCODE = getbits18 (ins, 3, 6);
         word1 I = 0;

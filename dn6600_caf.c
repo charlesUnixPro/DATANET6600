@@ -349,7 +349,7 @@ bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word15 *w, word3 *c)
     {                                           // possible char addressing
         getT(cpu, t, cpu->rIC, &ct, &wt);       // fetch T modification
         int32_t w6 = SIGNEXT6(d & BITS6);       // word displacement is lower 6-bits of 9-bit displacement field
-        sim_debug(DBG_CAF, &cpuDev, "potential non-word addressing; w6 %05o\n", w6);
+        sim_debug(DBG_CAF, &cpuDev, "word/char addressing; w6 %05o\n", w6);
         word3 c6 = (d >> 6) & BITS3;            // char address is upper 3-bits of 9-bit displacement field
         if (addAddr32(wt, ct, w6, c6, &wt, &ct) == false)
             return false;                       // some error occured
@@ -367,6 +367,7 @@ bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word15 *w, word3 *c)
     {
         word18 CY = cpu->M[Y];                  // so fetch indirect word @ addr Y
         t = _T(CY);                             // extract T field
+        sim_debug(DBG_CAF, &cpuDev, "indirect cycle start Y %05o ct %o CY %06o t %o\n", Y, ct, CY, t);
         if (t == 0)                             // word addressing
         {
             Y = CY & BITS15;                    // address is all 15-bits of Y
