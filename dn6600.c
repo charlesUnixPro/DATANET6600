@@ -1087,7 +1087,7 @@ t_stat sim_instr (void)
 
                     case 6:  // ILA
                       // Immediate Load A
-                      cpu . rA = Y & 0777;
+                      cpu . rA = D & 0777;
                       SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
                       SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
                       break;
