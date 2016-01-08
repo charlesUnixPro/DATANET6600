@@ -18,7 +18,10 @@ typedef uint32_t word9;
 typedef uint32_t word12;
 typedef uint32_t word15;
 typedef uint32_t word18;
+typedef uint32_t word20;
 typedef uint64_t word36;
+typedef uint64_t word37;
+typedef uint64_t word38;
 
 #define BIT0    ((word18)0400000)
 
@@ -29,6 +32,7 @@ typedef uint64_t word36;
 #define BITS12  ((word12)07777)
 #define BITS15  ((word15)077777)
 #define BITS18  ((word18)0777777)
+#define BITS36  ((word36)0777777777777l)
 
 
 #define SIGN6            040        // represents sign bit of a 9-bit 2-comp number

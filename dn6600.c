@@ -4,6 +4,7 @@
 #include "dn6600.h"
 #include "dn6600_caf.h"
 #include "coupler.h"
+#include "utils.h"
 
 char sim_name [] = "dn6600";
 int32 sim_emax = 1;
@@ -658,7 +659,18 @@ t_stat sim_instr (void)
               break;
 
             case 015: // ADAQ
-              UNIMP;
+              // Add to AQ
+              {
+                bool ovf;
+                word36 tmp = ((word36) (cpu . rA << 18)) | cpu . rQ;
+                word36 res = Add36b (tmp, YY, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                     & cpu . rIR, & ovf);
+                //if (ovf and fault) XXX
+
+                cpu . rA = (res >> 18) & BITS18;
+                cpu . rQ = res & BITS18;
+              }
+              break;
 
             case 016: // ASA
               UNIMP;
