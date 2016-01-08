@@ -1117,13 +1117,61 @@ t_stat sim_instr (void)
                       UNIMP;
 
                     case 1:  // IACX1
-                      UNIMP;
+                      // Immediate Add Character Adress to X1
+                      // FA (C(X1), D] -> X1
+                      {
+                        int wx = SIGNEXT6 (D & BITS6);
+                        word3 cx = SIGNEXT15 ((D >> 6) & BITS3);
+
+                        int wy = SIGNEXT15 (cpu . rX1 & BITS15);
+                        word3 cy = (cpu . rX1 >> 15) & BITS3;
+
+                        word15 wz;
+                        word3 cz;
+                        addAddr32 (wx, cx, wy, cy, & wz, & cz);
+
+                        cpu . rX1 = ((cy & BITS3) << 15) | (cz & BITS15);
+                        SCF (cpu . rX1 == 0, cpu . rIR, I_ZERO);
+                      }
+                      break;
 
                     case 2:  // IACX2
-                      UNIMP;
+                      // Immediate Add Character Adress to X2
+                      // FA (C(X2), D] -> X2
+                      {
+                        int wx = SIGNEXT6 (D & BITS6);
+                        word3 cx = SIGNEXT15 ((D >> 6) & BITS3);
+
+                        int wy = SIGNEXT15 (cpu . rX2 & BITS15);
+                        word3 cy = (cpu . rX2 >> 15) & BITS3;
+
+                        word15 wz;
+                        word3 cz;
+                        addAddr32 (wx, cx, wy, cy, & wz, & cz);
+
+                        cpu . rX2 = ((cy & BITS3) << 15) | (cz & BITS15);
+                        SCF (cpu . rX2 == 0, cpu . rIR, I_ZERO);
+                      }
+                      break;
 
                     case 3:  // IACX3
-                      UNIMP;
+                      // Immediate Add Character Adress to X3
+                      // FA (C(X3), D] -> X3
+                      {
+                        int wx = SIGNEXT6 (D & BITS6);
+                        word3 cx = SIGNEXT15 ((D >> 6) & BITS3);
+
+                        int wy = SIGNEXT15 (cpu . rX3 & BITS15);
+                        word3 cy = (cpu . rX3 >> 15) & BITS3;
+
+                        word15 wz;
+                        word3 cz;
+                        addAddr32 (wx, cx, wy, cy, & wz, & cz);
+
+                        cpu . rX3 = ((cy & BITS3) << 15) | (cz & BITS15);
+                        SCF (cpu . rX3 == 0, cpu . rIR, I_ZERO);
+                      }
+                      break;
 
                     case 4:  // ILQ
                       UNIMP;

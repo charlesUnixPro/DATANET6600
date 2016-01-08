@@ -273,7 +273,6 @@ int CAARmatrix[8][8] =
 /*
  * Add 2 addresses together (both word address assumed to be sign-extended to 32-bits)
  */
-static
 bool addAddr32(int wx, word3 cx, int wy, word3 cy, word15 *wz, word3 *cz)
 {
     word15 w = wx + wy;  // calculate word address (ignoring carry/overflow for now)

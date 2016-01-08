@@ -27,5 +27,6 @@ word36 readITD36(cpu_t *cpu, bool i, word2 t, word9 d);
 void writeITD  (cpu_t *cpu, word18 data, bool i, word2 t, word9 d);
 void writeITD36(cpu_t *cpu, word36 data, bool i, word2 t, word9 d);
 
+bool addAddr32(int wx, word3 cx, int wy, word3 cy, word15 *wz, word3 *cz);
 
 #endif /* dn6600_caf_h */

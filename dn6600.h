@@ -51,9 +51,9 @@ typedef uint64_t word38;
 //#define SGNX14  037777760000        // sign extend a 14-bit number to 32-bits
 //#define SIGNEXT14(x)    (((x) & SIGN14) ? ((x) | SGNX14) : (x))
 
-//#define SIGN15        040000        // represents sign bit of a 15-bit 2-comp number
-//#define SGNX15  037777740000        // sign extend a 15-bit number to 32-bits
-//#define SIGNEXT15(x)    (((x) & SIGN15) ? ((x) | SGNX15) : (x))
+#define SIGN15        040000        // represents sign bit of a 15-bit 2-comp number
+#define SGNX15  037777740000        // sign extend a 15-bit number to 32-bits
+#define SIGNEXT15(x)    (((x) & SIGN15) ? ((x) | SGNX15) : (x))
 
 #define _I(x)    (((x) & BIT0) ? true : false)   // extract indirect bit
 #define _T(x)    (((x) >> 15) & BITS2)           // extract T field
