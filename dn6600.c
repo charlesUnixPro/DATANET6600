@@ -496,6 +496,7 @@ t_stat sim_instr (void)
             if ((reason = sim_process_event ()))
               break;
           }
+        sim_interval --;
 
         // Check for outstanding interrupts and process if required. 
 
