@@ -115,6 +115,7 @@ enum
 
 #define DBG_DEBUG       (1U << 0)
 #define DBG_TRACE       (1U << 1)
+#define DBG_REG         (1U << 2)
 
 // JMP_ENTRY must be 0, which is the return value of the setjmp initial
 // entry

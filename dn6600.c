@@ -128,6 +128,7 @@ static UNIT cpu_unit =
 static DEBTAB cpu_dt[] = 
   {
     { "TRACE",      DBG_TRACE       },
+    { "REG",        DBG_REG         },
     { NULL,         0               }
   };
 
@@ -1126,6 +1127,18 @@ t_stat sim_instr (void)
                   }
               }
           }
+
+        sim_debug (DBG_REG, & cpuDev, "A: %06o Q: %06o X: %06o %06o %06o IR: %06o %s %s %s %s\n",
+                   cpu . rA,
+                   cpu . rQ,
+                   cpu . rX1,
+                   cpu . rX2,
+                   cpu . rX3,
+                   cpu . rIR,
+                   TSTF (cpu . rIR, I_ZERO) ?  "Z" : "!Z",
+                   TSTF (cpu . rIR, I_NEG) ?   "N" : "!N",
+                   TSTF (cpu . rIR, I_CARRY) ? "C" : "!C",
+                   TSTF (cpu . rIR, I_OVF) ?   "O" : "!O");
 
         cpu . rIC = NEXT_IC;
 
