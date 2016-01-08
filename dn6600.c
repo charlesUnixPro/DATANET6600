@@ -832,7 +832,27 @@ t_stat sim_instr (void)
                               break;
 
                             case 6: // QLP
-                              UNIMP;
+                              // Q Left Parity Rotate
+                              // Rotate C(Q) by Y (12-17) positions, enter each
+                              // bit leaving position zero into position 17.
+                              // Zero: If the number of 1's leavong position 0
+                              // is even, then ON; otherwise OFF
+                              // Negative: If (C(Q)0 = 1, then ON; otherwise OFF
+                              
+                              {
+                                int ones = 0;
+                                for (uint n = 0; n < K; n ++)
+                                  {
+                                    word1 out = getbits18 (cpu . rQ, 0, 1);
+                                    cpu . rQ <<= 1;
+                                    cpu . rQ |= out;
+                                    if (out)
+                                      ones ++;
+                                  }
+                                SCF (ones % 2 == 0, cpu . rIR, I_ZERO);
+                                SCF (getbits18 (cpu . rQ, 0, 1) == 1, cpu . rIR, I_NEG);
+                              }
+                              break;
 
                             default:
                               ILL;

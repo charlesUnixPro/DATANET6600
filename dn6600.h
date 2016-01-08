@@ -55,6 +55,20 @@ typedef uint64_t word36;
 #define _C(x)    (((x) >> 15) & BITS3)           // extract C (char address) from 18-bit word
 #define _W(x)     ((x) & BITS15)                 // extract W (word address) from 18-bit word
 
+#define SETF(flags, x)         flags = ((flags) |  (x))
+#define CLRF(flags, x)         flags = ((flags) & ~(x))
+#define TSTF(flags, x)         ((flags) & (x))
+#define SCF(cond, flags, x)    { if ((cond)) SETF((flags), x); else CLRF((flags), x); }
+
+#define I_ZERO  (1u << 17)
+#define I_NEG   (1u << 16)
+#define I_CARRY (1u << 15)
+#define I_OVF   (1u << 14)
+#define I_II    (1u << 13)
+#define I_PFI   (1u << 12)
+#define I_OFI   (1u << 11)
+#define I_PE    (1u << 10)
+
 // Word size
 enum { WSZ = 18 };
 
