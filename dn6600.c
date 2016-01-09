@@ -464,11 +464,15 @@ static void listSource (int offset)
     while (fgets (buffer, 132, lf))
       {
         int os;
-        sscanf (buffer, "       %5o ", & os);
+        if (strncmp (buffer, "       ", 7) != 0)
+          continue;
+        if (strspn (buffer + 7, "01234567") != 5)
+          continue;
+        sscanf (buffer, " %o", & os);
         if (os == offset)
           {
             sim_debug (DBG_TRACE, & cpuDev, "%s", buffer);
-            break;
+            //break;
           }
       }
     fclose (lf);
@@ -584,7 +588,8 @@ t_stat sim_instr (void)
                       }
                     else if (opcTable [OPCODE] . opSize == opDW)
                       {
-                        YY = fromMemory36 (& cpu, W, C);
+                        //YY = fromMemory36 (& cpu, W, C);
+                        YY = fromMemory36 (& cpu, W, 1);
                       }
                   }
                 break;
@@ -1307,7 +1312,8 @@ if (D & 040) // if bit 12 (sign) set
                   }
                 else if (opcTable [OPCODE] . opSize == opDW)
                   {
-                    toMemory36 (& cpu, YY, W, C);
+                    //toMemory36 (& cpu, YY, W, C);
+                    toMemory36 (& cpu, YY, W, 1);
                   }
               }
           }
