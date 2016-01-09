@@ -352,6 +352,8 @@ bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word15 *w, word3 *c)
         int32_t w6 = SIGNEXT6(d & BITS6);       // word displacement is lower 6-bits of 9-bit displacement field
         sim_debug(DBG_CAF, &cpuDev, "w6 %05o\n", w6);
         word3 c6 = (d >> 6) & BITS3;            // char address is upper 3-bits of 9-bit displacement field
+if (d & 040) // if bit 12 (sign) set
+  c6 = ~c6;
         if (addAddr32(wt, ct, w6, c6, &wt, &ct) == false)
         {
             sim_debug (DBG_CAF, &cpuDev, "CAF bail!\n");
