@@ -655,7 +655,11 @@ t_stat sim_instr (void)
 
 // 10 - 17
             case 010: // TSY
-              UNIMP;
+              // Transfer amd Store IC in Y
+              
+              Y = (cpu . rIC + 1) & BITS15;
+              NEXT_IC = (W + 1) & BITS15;
+              break;
 
             case 011: // ill
               ILL;
@@ -895,7 +899,27 @@ t_stat sim_instr (void)
                               break;
 
                             case 6: // ALP
-                              UNIMP;
+                              // A Left Parity Rotate
+                              // Rotate C(A) by Y (12-17) positions, enter each
+                              // bit leaving position zero into position 17.
+                              // Zero: If the number of 1's leavong position 0
+                              // is even, then ON; otherwise OFF
+                              // Negative: If (C(A)0 = 1, then ON; otherwise OFF
+                              
+                              {
+                                int ones = 0;
+                                for (uint n = 0; n < K; n ++)
+                                  {
+                                    word1 out = getbits18 (cpu . rA, 0, 1);
+                                    cpu . rA <<= 1;
+                                    cpu . rA |= out;
+                                    if (out)
+                                      ones ++;
+                                  }
+                                SCF (ones % 2 == 0, cpu . rIR, I_ZERO);
+                                SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+                              }
+                              break;
 
                             default:
                               ILL;
@@ -1013,7 +1037,11 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 037: // ORA
-              UNIMP;
+              // OR to A
+              cpu . rA |= Y;
+              SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
+              SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+              break;
 
 
 // 40 - 47
@@ -1166,6 +1194,8 @@ t_stat sim_instr (void)
             case 072: // ORSA
               // OR to storage A
               Y |= cpu . rA;
+              SCF (Y == 0, cpu . rIR, I_ZERO);
+              SCF (getbits18 (Y, 0, 1) == 1, cpu . rIR, I_NEG);
               break;
 
             case 073: // grp1a
@@ -1298,7 +1328,11 @@ if (D & 040) // if bit 12 (sign) set
               break;
 
             case 076: // AOS
-              UNIMP;
+              // Add One to Storage
+              Y = (Y + 1) & BITS18;
+              SCF (Y == 0, cpu . rIR, I_ZERO);
+              SCF (getbits18 (Y, 0, 1) == 1, cpu . rIR, I_NEG);
+              break;
 
             case 077: // ill
               ILL;
