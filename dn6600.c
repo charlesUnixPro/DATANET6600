@@ -690,9 +690,12 @@ t_stat sim_instr (void)
               // Add to AQ
               {
                 bool ovf;
-                word36 tmp = ((word36) (cpu . rA << 18)) | cpu . rQ;
+                word36 tmp = ((word36) (cpu . rA) << 18) | cpu . rQ;
+                sim_debug (DBG_TRACE, & cpuDev, "ADAQ     %012lo\n", tmp);
+                sim_debug (DBG_TRACE, & cpuDev, "ADAQ +   %012lo\n", YY);
                 word36 res = Add36b (tmp, YY, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
                                      & cpu . rIR, & ovf);
+                sim_debug (DBG_TRACE, & cpuDev, "ADAQ =  %d%012lo\n", TSTF (cpu . rIR, I_CARRY) ? 1 : 0, res);
                 //if (ovf and fault) XXX
 
                 cpu . rA = (res >> 18) & BITS18;
@@ -748,8 +751,8 @@ t_stat sim_instr (void)
               // Subtract from AQ
               {
                 bool ovf;
-                word36 tmp = ((word36) (cpu . rA << 18)) | cpu . rQ;
-                word36 res = Sub36b (tmp, YY, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                word36 tmp = ((word36) (cpu . rA) << 18) | cpu . rQ;
+                word36 res = Sub36b (tmp, YY, 1, I_ZERO | I_NEG | I_OVF | I_CARRY,
                                      & cpu . rIR, & ovf);
                 //if (ovf and fault) XXX
 

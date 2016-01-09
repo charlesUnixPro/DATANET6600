@@ -348,15 +348,20 @@ bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word15 *w, word3 *c)
     else
     {                                           // possible char addressing
         getT(cpu, t, cpu->rIC, &ct, &wt);       // fetch T modification
+        sim_debug(DBG_CAF, &cpuDev, "after getT            ct %o wt %05o\n", ct, wt);
         int32_t w6 = SIGNEXT6(d & BITS6);       // word displacement is lower 6-bits of 9-bit displacement field
-        sim_debug(DBG_CAF, &cpuDev, "word/char addressing; w6 %05o\n", w6);
+        sim_debug(DBG_CAF, &cpuDev, "w6 %05o\n", w6);
         word3 c6 = (d >> 6) & BITS3;            // char address is upper 3-bits of 9-bit displacement field
         if (addAddr32(wt, ct, w6, c6, &wt, &ct) == false)
+        {
+            sim_debug (DBG_CAF, &cpuDev, "CAF bail!\n");
             return false;                       // some error occured
+        }
         if (!(ct == 0 && i))                    // is a word access + indirecttion cycle required?
         {
             *c = ct;
             *w = wt;
+            sim_debug(DBG_CAF, &cpuDev, "CAF Exit (I && CT) C %o W %05o\n", ct, wt);
             return true;
         }
     }
@@ -377,7 +382,10 @@ bool doCAF(cpu_t *cpu, bool i, word2 t, word9 d, word15 *w, word3 *c)
             word12 w12 = SIGNEXT12(CY & BITS12);// get 12-bit displacement
             word3 c12 = (CY >> 12) & BITS3;
             if (addAddr32(wt, ct, w12, c12, &Y, &ct) == false)
-                return false;                   // some error occured
+            {
+                sim_debug (DBG_CAF, &cpuDev, "CAF bail2!\n");
+                return false;                       // some error occured
+            }
         }
         i = _I(CY);                             // more indirection?
         
