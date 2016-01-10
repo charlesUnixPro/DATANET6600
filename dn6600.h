@@ -17,6 +17,7 @@ typedef uint32_t word6;
 typedef uint32_t word9;
 typedef uint32_t word12;
 typedef uint32_t word15;
+typedef uint32_t word16;
 typedef uint32_t word18;
 typedef uint32_t word20;
 typedef uint64_t word36;
@@ -31,6 +32,8 @@ typedef uint64_t word38;
 #define BITS9   ((word9) 0777)
 #define BITS12  ((word12)07777)
 #define BITS15  ((word15)077777)
+#define BITS16  ((word16)0177777)
+#define BITS17  ((word16)0377777)
 #define BITS18  ((word18)0777777)
 #define BITS36  ((word36)0777777777777l)
 
@@ -54,6 +57,10 @@ typedef uint64_t word38;
 #define SIGN15        040000        // represents sign bit of a 15-bit 2-comp number
 #define SGNX15  037777740000        // sign extend a 15-bit number to 32-bits
 #define SIGNEXT15(x)    (((x) & SIGN15) ? ((x) | SGNX15) : (x))
+
+#define SIGN18       0400000        // represents sign bit of a 18-bit 2-comp number
+#define SGNX18  037777400000        // sign extend a 18-bit number to 32-bits
+#define SIGNEXT18(x)    (((x) & SIGN18) ? ((x) | SGNX18) : (x))
 
 #define _I(x)    (((x) & BIT0) ? true : false)   // extract indirect bit
 #define _T(x)    (((x) >> 15) & BITS2)           // extract T field
@@ -95,8 +102,8 @@ typedef struct
     word18  rX1;            // index register X1
     word18  rX2;            // index register X2
     word18  rX3;            // index register X3
-    //word18  rS;             // I/O channel select register
     word1   rII;            // interrupt inhibit
+    word16  rIE;            // interrupt level enable (yes, 16. not a typo)
 
 // Instruction decoder workspace
 

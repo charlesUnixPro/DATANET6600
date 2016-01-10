@@ -326,4 +326,39 @@ word18 Sub18b (word18 op1, word18 op2, word1 carryin, word18 flagsToSet, word18 
     return res;
   }
 
+void cmp18(word18 oP1, word18 oP2, word18 *flags)
+  {
+    int32 op1 = SIGNEXT18 (oP1 & BITS18);
+    int32 op2 = SIGNEXT18 (oP2 & BITS18);
+
+    word18 sign1 = op1 & SIGN18;
+    word18 sign2 = op2 & SIGN18;
+
+    if ((! sign1) && sign2)  // op1 > 0, op2 < 0 :: op1 > op2
+      CLRF (* flags, I_ZERO | I_NEG | I_CARRY);
+
+    else if (sign1 == sign2) // both operands have the same sogn
+      {
+         if (op1 > op2)
+           {
+             SETF (* flags, I_CARRY);
+             CLRF (* flags, I_ZERO | I_NEG);
+           }
+         else if (op1 == op2)
+           {
+             SETF (* flags, I_ZERO | I_CARRY);
+             CLRF (* flags, I_NEG);
+           }
+         else //  op1 < op2
+          {
+            SETF (* flags, I_NEG);
+            CLRF (* flags, I_ZERO | I_CARRY);
+          }
+      }
+    else // op1 < 0, op2 > 0 :: op1 < op2
+      {
+        SETF (* flags, I_CARRY | I_NEG);
+        CLRF (* flags, I_ZERO);
+      }
+  }
 

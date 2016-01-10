@@ -615,6 +615,10 @@ t_stat sim_instr (void)
 #define ILL doFault (faultIllegalOpcode, "illegal opcode")
 #define UNIMP doUnimp (cpu . OPCODE);
 
+#define SET_ZN(R) \
+  SCF (R == 0, cpu . rIR, I_ZERO); \
+  SCF (getbits18 (R, 0, 1) == 1, cpu . rIR, I_NEG)
+
         switch (cpu . OPCODE)
           {
             case 000: // illegal
@@ -624,7 +628,20 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 002: // ADCX2
-              UNIMP;
+              // Add Character Address to X2
+              // FA (C(X2), C(Y)] -> X2
+              {
+                int wx = SIGNEXT15 (cpu . rX2 & BITS15);
+                word3 cx = (cpu . rX2 >> 15) & BITS3;
+
+                word15 wz;
+                word3 cz;
+                addAddr32 (wx, cx, cpu . W, cpu . C, & wz, & cz);
+
+                cpu . rX2 = ((cz & BITS3) << 15) | (wz & BITS15);
+                SCF (cpu . rX2 == 0, cpu . rIR, I_ZERO);
+              }
+              break;
 
             case 003: // LDX2
               // Load X2
@@ -644,13 +661,19 @@ t_stat sim_instr (void)
               ILL;
 
             case 006: // ADA
-              UNIMP;
+              // Add to A
+              {
+                bool ovf;
+                cpu . rA = Add18b (cpu . rA, cpu . Y, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                   & cpu . rIR, & ovf);
+                //if (ovf and fault) XXX
+              }
+              break;
 
             case 007: // LDA
               // Load A
               cpu . rA = cpu . Y;
-              SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
-              SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+              SET_ZN (cpu . rA);
               break;
 
 
@@ -670,7 +693,9 @@ t_stat sim_instr (void)
                 switch (cpu . S1)
                   {
                     case 0:  // RIER
-                      UNIMP;
+                      // Read Interrupt Level Enable Register
+                      cpu . rA = cpu . rIE & BITS16;
+                      break;
 
                     case 4:  // RIA
                       UNIMP;
@@ -709,7 +734,14 @@ t_stat sim_instr (void)
               break;
 
             case 016: // ASA
-              UNIMP;
+              // Add A to storage
+              {
+                bool ovf;
+                cpu . Y = Add18b (cpu . rA, cpu . Y, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                 & cpu . rIR, & ovf);
+                //if (ovf and fault) XXX
+              }
+              break;
 
             case 017: // STA
               // Store A
@@ -719,7 +751,9 @@ t_stat sim_instr (void)
 
 // 20 - 27
             case 020: // SZN
-              UNIMP;
+              // Set Zero and Negative Indicators from Storage
+              SET_ZN (cpu . Y);
+              break;
 
             case 021: // DVF
               UNIMP;
@@ -729,19 +763,34 @@ t_stat sim_instr (void)
                 switch (cpu . S1)
                   {
                     case 0:  // IANA
-                      UNIMP;
+                      // Immediate AND to A
+                      cpu . rA &= SIGNEXT6 (cpu . D & BITS6);
+                      SET_ZN (cpu . rA);
+                      break;
 
                     case 1:  // IORA
-                      UNIMP;
+                      // Immediate OR to A
+                      cpu . rA |= SIGNEXT6 (cpu . D & BITS6);
+                      SET_ZN (cpu . rA);
+                      break;
 
                     case 2:  // ICANA
-                      UNIMP;
+                      // Immediate Comparative AND to A
+                      {
+                        word18 Z = cpu . rA & SIGNEXT6 (cpu . D & BITS6);
+                        SET_ZN (Z);
+                      }
+                      break;
 
                     case 3:  // IERA
-                      UNIMP;
+                      // Immediate OR to A
+                      cpu . rA ^= SIGNEXT6 (cpu . D & BITS6);
+                      SET_ZN (cpu . rA);
+                      break;
 
                     case 4:  // ICMPA
-                      UNIMP;
+                      cmp18 (cpu . rA, SIGNEXT6 (cpu . D & BITS6), & cpu . rIR);
+                      break;
 
                     default:
                       ILL;
@@ -750,7 +799,8 @@ t_stat sim_instr (void)
               break;
 
             case 023: // CMPX2
-              UNIMP;
+              SCF (cpu . rX2 == cpu . Y, cpu . rIR, I_ZERO);
+              break;
 
             case 024: // SBAQ
               // Subtract from AQ
@@ -770,10 +820,18 @@ t_stat sim_instr (void)
               ILL;
 
             case 026: // SBA
-              UNIMP;
+              // Subtract from A
+              {
+                bool ovf;
+                cpu . rA = Sub18b (cpu . rA, cpu . Y, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                   & cpu . rIR, & ovf);
+                //if (ovf and fault) XXX
+              }
+              break;
 
             case 027: // CMPA
-              UNIMP;
+              cmp18 (cpu . rA, cpu . Y, & cpu . rIR);
+              break;
 
 
 // 30 - 37
@@ -781,10 +839,18 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 031: // CANA
-              UNIMP;
+              // Comparative AND to A
+              {
+                word18 Z = cpu . rA & cpu . Y;
+                SET_ZN (Z);
+              }
+              break;
 
             case 032: // ANSA
-              UNIMP;
+              // AND to Storage A
+              cpu . Y &= cpu . rA;
+              SET_ZN (cpu . Y);
+              break;
 
             case 033: // grp2
               {
@@ -800,29 +866,74 @@ t_stat sim_instr (void)
                               break;
 
                             case 4: // LLS
-                             UNIMP;
+                              // Long Left Shift
+                              {
+                                // XXX should a shift of 0 clear the carry?
+                                CLRF (cpu . rIR, I_CARRY);
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    if (cpu . rA & BIT0)
+                                      SETF (cpu . rIR, I_CARRY);
+                                    cpu . rA = (cpu . rA << 1) & BITS18;
+                                    if (cpu . rQ & BIT0)
+                                      cpu . rA |= 1;
+                                    cpu . rQ = (cpu . rQ << 1) & BITS18;
+                                  }
+                                SCF (cpu . rA == 0 && cpu . rQ == 0, cpu . rIR, I_ZERO);
+                                SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+                              }
+                              break;
 
                             case 5: // LRS
-                             UNIMP;
+                              // Long Right Shift
+                              {
+                                word1 aq0 = getbits18 (cpu . rA, 0, 1);
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    // shift lower half
+                                    cpu . rQ = (cpu . rQ >> 1) & BITS17;
+                                    // copy low bit of upper half to lower
+                                    setbits18 (cpu . rQ, 0, 1, 
+                                               getbits18 (cpu . rA, 17, 1));
+                                    // shift upper half
+                                    cpu . rA = (cpu . rA >> 1) & BITS17;
+                                    // fill with orig AQ0
+                                    setbits18 (cpu . rA, 0, 1, aq0);
+                                  }
+                                SCF (cpu . rA == 0 && cpu . rQ == 0, cpu . rIR, I_ZERO);
+                                SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+                              }
+                              break;
 
                             case 6: // ALS
-                             // A Left Shift
-                             {
-                               // should a shift of 0 clear the carry?
-                               CLRF (cpu . rIR, I_CARRY);
-                               for (uint i = 0; i < cpu . K; i ++)
-                                 {
-                                   if (cpu . rA & BIT0)
-                                     SETF (cpu . rIR, I_CARRY);
-                                   cpu . rA = (cpu . rA << 1) & BITS18;
-                                 }
-                               SCF (cpu . rA == 0 && cpu . rQ == 0, cpu . rIR, I_ZERO);
-                               SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
-                             }
-                             break;
+                              // A Left Shift
+                              {
+                                // XXX should a shift of 0 clear the carry?
+                                CLRF (cpu . rIR, I_CARRY);
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    if (cpu . rA & BIT0)
+                                      SETF (cpu . rIR, I_CARRY);
+                                    cpu . rA = (cpu . rA << 1) & BITS18;
+                                  }
+                                SET_ZN (cpu . rA);
+                              }
+                              break;
 
                             case 7: // ARS
-                             UNIMP;
+                              // A Right Shift
+                              {
+                                word1 a0 = getbits18 (cpu . rA, 0, 1);
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    // shift
+                                    cpu . rA = (cpu . rA >> 1) & BITS17;
+                                    // fill with orig A0
+                                    setbits18 (cpu . rA, 0, 1, a0);
+                                  }
+                                SET_ZN (cpu . rA);
+                              }
+                              break;
 
                             default:
                               ILL;
@@ -835,10 +946,10 @@ t_stat sim_instr (void)
                         switch (cpu . S2)
                           {
                             case 4: // NRML
-                             UNIMP;
+                              UNIMP;
 
                             case 6: // NRM
-                             UNIMP;
+                              UNIMP;
 
                             default:
                               ILL;
@@ -860,16 +971,72 @@ t_stat sim_instr (void)
                               break;
 
                             case 4: // LLR
-                              UNIMP;
+                              // Long Left Rotate
+                              {
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    word1 a0 = getbits18 (cpu . rA, 0, 1);
+                                    // shift upper half
+                                    cpu . rA = (cpu . rA << 1) & BITS18;
+                                    
+                                    word1 q0 = getbits18 (cpu . rQ, 0, 1);
+                                    cpu . rA |= q0;
+
+                                    // shift lower half
+                                    cpu . rQ = (cpu . rQ << 1) & BITS18;
+                                    cpu . rQ |= a0;
+                                  }
+                                SCF (cpu . rA == 0 && cpu . rQ == 0, cpu . rIR, I_ZERO);
+                                SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+                              }
+                              break;
 
                             case 5: // LRL
-                              UNIMP;
+                              // Long Right Logic
+                              {
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    // shift lower half
+                                    cpu . rQ = (cpu . rQ >> 1) & BITS17;
+                                    // copy low bit of upper half to lower
+                                    setbits18 (cpu . rQ, 0, 1, 
+                                               getbits18 (cpu . rA, 17, 1));
+                                    // shift upper half
+                                    cpu . rA = (cpu . rA >> 1) & BITS17;
+                                    // fill with orig 0
+                                    setbits18 (cpu . rA, 0, 1, 0);
+                                  }
+                                SCF (cpu . rA == 0 && cpu . rQ == 0, cpu . rIR, I_ZERO);
+                                SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+                              }
+                              break;
 
                             case 6: // ALR
-                              UNIMP;
+                              // A Left Rotate
+                              {
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    word1 a0 = getbits18 (cpu . rA, 0, 1);
+                                    cpu . rA = (cpu . rA << 1) & BITS18;
+                                    setbits18 (cpu . rA, 17, 1, a0);
+                                  }
+                                SET_ZN (cpu . rA);
+                              }
+                              break;
 
                             case 7: // ARL
-                              UNIMP;
+                              // A Right Logic
+                              {
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    // shift
+                                    cpu . rA = (cpu . rA >> 1) & BITS17;
+                                    // fill with 0
+                                    setbits18 (cpu . rA, 0, 1, 0);
+                                  }
+                                SET_ZN (cpu . rA);
+                              }
+                              break;
 
                             default:
                               ILL;
@@ -946,10 +1113,34 @@ t_stat sim_instr (void)
                               break;
 
                             case 6: // QLS
-                             UNIMP;
+                              // Q Left Shift
+                              {
+                                // XXX should a shift of 0 clear the carry?
+                                CLRF (cpu . rIR, I_CARRY);
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    if (cpu . rQ & BIT0)
+                                      SETF (cpu . rIR, I_CARRY);
+                                    cpu . rQ = (cpu . rQ << 1) & BITS18;
+                                  }
+                                SET_ZN (cpu . rQ);
+                              }
+                              break;
 
                             case 7: // QRS
-                              UNIMP;
+                              // Q Right Shift
+                              {
+                                word1 q0 = getbits18 (cpu . rQ, 0, 1);
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    // shift
+                                    cpu . rQ = (cpu . rQ >> 1) & BITS17;
+                                    // fill with orig Q0
+                                    setbits18 (cpu . rQ, 0, 1, q0);
+                                  }
+                                SET_ZN (cpu . rQ);
+                              }
+                              break;
 
                             default:
                               ILL;
@@ -967,10 +1158,31 @@ t_stat sim_instr (void)
                               break;
 
                             case 6: // QLR
-                              UNIMP;
+                              // Q Left Rotate
+                              {
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    word1 q0 = getbits18 (cpu . rQ, 0, 1);
+                                    cpu . rQ = (cpu . rQ << 1) & BITS18;
+                                    setbits18 (cpu . rQ, 17, 1, q0);
+                                  }
+                                SET_ZN (cpu . rQ);
+                              }
+                              break;
 
                             case 7: // QRL
-                              UNIMP;
+                              // Q Right Logic
+                              {
+                                for (uint i = 0; i < cpu . K; i ++)
+                                  {
+                                    // shift
+                                    cpu . rQ = (cpu . rQ >> 1) & BITS17;
+                                    // fill with 0
+                                    setbits18 (cpu . rQ, 0, 1, 0);
+                                  }
+                                SET_ZN (cpu . rQ);
+                              }
+                              break;
 
                             default:
                               ILL;
@@ -1029,25 +1241,50 @@ t_stat sim_instr (void)
               break;
 
             case 034: // ANA
-              UNIMP;
+              // AND to A
+              cpu . rA &= cpu . Y;
+              SET_ZN (cpu . rA);
+              break;
 
             case 035: // ERA
-              UNIMP;
+              // EXCLUSIVE OR to A
+              cpu . rA ^= cpu . Y;
+              SET_ZN (cpu . rA);
+              break;
 
             case 036: // SSA
-              UNIMP;
+              // Subtract Stored from A
+              {
+                bool ovf;
+                cpu . Y = Sub18b (cpu . rA, cpu . Y, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                   & cpu . rIR, & ovf);
+                //if (ovf and fault) XXX
+              }
+              break;
 
             case 037: // ORA
               // OR to A
               cpu . rA |= cpu . Y;
-              SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
-              SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+              SET_ZN (cpu . rA);
               break;
 
 
 // 40 - 47
             case 040: // ADCX3
-              UNIMP;
+              // Add Character Address to X3
+              // FA (C(X3), C(Y)] -> X3
+              {
+                int wx = SIGNEXT15 (cpu . rX3 & BITS15);
+                word3 cx = (cpu . rX3 >> 15) & BITS3;
+
+                word15 wz;
+                word3 cz;
+                addAddr32 (wx, cx, cpu . W, cpu . C, & wz, & cz);
+
+                cpu . rX3 = ((cz & BITS3) << 15) | (wz & BITS15);
+                SCF (cpu . rX3 == 0, cpu . rIR, I_ZERO);
+              }
+              break;
 
             case 041: // LDX3
               // Load X3
@@ -1056,7 +1293,20 @@ t_stat sim_instr (void)
               break;
 
             case 042: // ADCX1
-              UNIMP;
+              // Add Character Address to X1
+              // FA (C(X1), C(Y)] -> X1
+              {
+                int wx = SIGNEXT15 (cpu . rX1 & BITS15);
+                word3 cx = (cpu . rX1 >> 15) & BITS3;
+
+                word15 wz;
+                word3 cz;
+                addAddr32 (wx, cx, cpu . W, cpu . C, & wz, & cz);
+
+                cpu . rX1 = ((cz & BITS3) << 15) | (wz & BITS15);
+                SCF (cpu . rX1 == 0, cpu . rIR, I_ZERO);
+              }
+              break;
 
             case 043: // LDX1
               // Load X1
@@ -1079,13 +1329,19 @@ t_stat sim_instr (void)
               break;
 
             case 046: // ADQ
-              UNIMP;
+              // Add to Q
+              {
+                bool ovf;
+                cpu . rQ = Add18b (cpu . rQ, cpu . Y, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                   & cpu . rIR, & ovf);
+                //if (ovf and fault) XXX
+              }
+              break;
 
             case 047: // LDQ
               // Load Q
               cpu . rQ = cpu . Y;
-              SCF (cpu . rQ == 0, cpu . rIR, I_ZERO);
-              SCF (getbits18 (cpu . rQ, 0, 1) == 1, cpu . rIR, I_NEG);
+              SET_ZN (cpu . rQ);
               break;
 
 
@@ -1094,7 +1350,6 @@ t_stat sim_instr (void)
               // Store X3
               cpu . Y = cpu . rX3;
               break;
-              UNIMP;
 
             case 051: // ill
               ILL;
@@ -1104,9 +1359,12 @@ t_stat sim_instr (void)
                 switch (cpu . S1)
                   {
                     case 0:  // SIER
-                      UNIMP;
+                      // Set Interrupt Level Enable Register
+                      cpu . rIE = cpu . rA & BITS16;
+                      break;
 
                     case 4:  // SIC
+                      // Set Interrupt Cells
                       UNIMP;
 
                     default:
@@ -1160,13 +1418,18 @@ t_stat sim_instr (void)
               UNIMP;
 
             case 061: // CMPX3
-              UNIMP;
+              SCF (cpu . rX3 == cpu . Y, cpu . rIR, I_ZERO);
+              break;
 
             case 062: // ERSA
-              UNIMP;
+              // EXCLUSIVE OR to Storage A
+              cpu . Y ^= cpu . rA;
+              SET_ZN (cpu . Y);
+              break;
 
             case 063: // CMPX1
-              UNIMP;
+              SCF (cpu . rX1 == cpu . Y, cpu . rIR, I_ZERO);
+              break;
 
             case 064: // TNZ
               // Transfer on Not Zero
@@ -1185,10 +1448,18 @@ t_stat sim_instr (void)
               break;
 
             case 066: // SBQ
-              UNIMP;
+              // Subtract from Q
+              {
+                bool ovf;
+                cpu . rQ = Sub18b (cpu . rQ, cpu . Y, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                                   & cpu . rIR, & ovf);
+                //if (ovf and fault) XXX
+              }
+              break;
 
             case 067: // CMPQ
-              UNIMP;
+              cmp18 (cpu . rQ, cpu . Y, & cpu . rIR);
+              break;
 
 
 // 70 - 77
@@ -1204,8 +1475,7 @@ t_stat sim_instr (void)
             case 072: // ORSA
               // OR to storage A
               cpu . Y |= cpu . rA;
-              SCF (cpu . Y == 0, cpu . rIR, I_ZERO);
-              SCF (getbits18 (cpu . Y, 0, 1) == 1, cpu . rIR, I_NEG);
+              SET_ZN (cpu . Y);
               break;
 
             case 073: // grp1a
@@ -1213,10 +1483,12 @@ t_stat sim_instr (void)
                 switch (cpu . S1)
                   {
                     case 0:  // SEL
-                      UNIMP;
+                      // Select I/O Channel
+                      setbits18 (cpu . rIR, 12, 6, cpu . Y & BITS6);
+                      break;
 
                     case 1:  // IACX1
-                      // Immediate Add Character Adress to X1
+                      // Immediate Add Character Address to X1
                       // FA (C(X1), D] -> X1
                       {
                         int wx = SIGNEXT6 (cpu . D & BITS6);
@@ -1239,7 +1511,7 @@ t_stat sim_instr (void)
                       break;
 
                     case 2:  // IACX2
-                      // Immediate Add Character Adress to X2
+                      // Immediate Add Character Address to X2
                       // FA (C(X2), D] -> X2
                       {
                         int wx = SIGNEXT6 (cpu . D & BITS6);
@@ -1262,7 +1534,7 @@ t_stat sim_instr (void)
                       break;
 
                     case 3:  // IACX3
-                      // Immediate Add Character Adress to X3
+                      // Immediate Add Character Address to X3
                       // FA (C(X3), D] -> X3
                       {
                         int wx = SIGNEXT6 (cpu . D & BITS6);
@@ -1287,8 +1559,7 @@ t_stat sim_instr (void)
                     case 4:  // ILQ
                       // Immediate Load Q
                       cpu . rQ = SIGNEXT9 (cpu . D & 0777) & BITS18;
-                      SCF (cpu . rQ == 0, cpu . rIR, I_ZERO);
-                      SCF (getbits18 (cpu . rQ, 0, 1) == 1, cpu . rIR, I_NEG);
+                      SET_ZN (cpu . rQ);
                       break;
 
                     case 5:  // IAQ
@@ -1305,8 +1576,7 @@ t_stat sim_instr (void)
                     case 6:  // ILA
                       // Immediate Load A
                       cpu . rA = SIGNEXT9 (cpu . D & 0777) & BITS18;
-                      SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
-                      SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
+                      SET_ZN (cpu . rA);
                       break;
 
                     case 7:  // IAA
@@ -1343,8 +1613,7 @@ t_stat sim_instr (void)
             case 076: // AOS
               // Add One to Storage
               cpu . Y = (cpu . Y + 1) & BITS18;
-              SCF (cpu . Y == 0, cpu . rIR, I_ZERO);
-              SCF (getbits18 (cpu . Y, 0, 1) == 1, cpu . rIR, I_NEG);
+              SET_ZN (cpu . Y);
               break;
 
             case 077: // ill
@@ -1375,10 +1644,10 @@ t_stat sim_instr (void)
                    cpu . rX2,
                    cpu . rX3,
                    cpu . rIR,
-                   TSTF (cpu . rIR, I_ZERO) ?  "Z" : "!Z",
-                   TSTF (cpu . rIR, I_NEG) ?   "N" : "!N",
-                   TSTF (cpu . rIR, I_CARRY) ? "C" : "!C",
-                   TSTF (cpu . rIR, I_OVF) ?   "O" : "!O");
+                   TSTF (cpu . rIR, I_ZERO) ?  " Z" : "!Z",
+                   TSTF (cpu . rIR, I_NEG) ?   " N" : "!N",
+                   TSTF (cpu . rIR, I_CARRY) ? " C" : "!C",
+                   TSTF (cpu . rIR, I_OVF) ?   " O" : "!O");
 
         cpu . rIC = cpu . NEXT_IC;
 
