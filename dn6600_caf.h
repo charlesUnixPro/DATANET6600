@@ -10,7 +10,7 @@
 #ifndef dn6600_caf_h
 #define dn6600_caf_h
 
-
+#include <stdbool.h>
 
 
 word18 fromMemory  (cpu_t *cpu, word15 addr, int charAddr);

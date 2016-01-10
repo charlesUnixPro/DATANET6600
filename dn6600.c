@@ -4,6 +4,7 @@
 #include "dn6600.h"
 #include "dn6600_caf.h"
 #include "coupler.h"
+#include "iom.h"
 #include "utils.h"
 
 char sim_name [] = "dn6600";
@@ -377,7 +378,7 @@ static struct opc_t opcTable [64] =
 // 10 - 17
     { "TSY",     opcMR,  OP_WR     }, // 10
     { "ill",     opcILL, OP_NULL   }, // 11
-    { "grp1d",   opcG1 }, // 12
+    { "grp1d",   opcG1             }, // 12
     { "STX2",    opcMR,  OP_WR     }, // 13
     { "STAQ",    opcMR,  OP_DWR    }, // 14
     { "ADAQ",    opcMR,  OP_DRD    }, // 15
@@ -387,7 +388,7 @@ static struct opc_t opcTable [64] =
 // 20 - 27
     { "SZN",     opcMR,  OP_RD     }, // 20
     { "DVF",     opcMR,  OP_RD     }, // 21
-    { "grp1b",   opcG1 }, // 22
+    { "grp1b",   opcG1             }, // 22
     { "CMPX2",   opcMR,  OP_RD     }, // 23
     { "SBAQ",    opcMR,  OP_DRD    }, // 24
     { "ill",     opcILL, OP_NULL   }, // 25
@@ -398,7 +399,7 @@ static struct opc_t opcTable [64] =
     { "LDEX",    opcMR,  OP_NULL   }, // 30
     { "CANA",    opcMR,  OP_RD     }, // 31
     { "ANSA",    opcMR,  OP_RMW    }, // 32
-    { "grp2",    opcG2  }, // 32
+    { "grp2",    opcG2             }, // 32
     { "ANA",     opcMR,  OP_RD     }, // 34
     { "ERA",     opcMR,  OP_RD     }, // 35
     { "SSA",     opcMR,  OP_RMW    }, // 36
@@ -417,7 +418,7 @@ static struct opc_t opcTable [64] =
 // 50 - 57
     { "STX3",    opcMR,  OP_WR     }, // 50
     { "ill",     opcILL, OP_NULL   }, // 51
-    { "grp1c",   opcG1 }, // 52
+    { "grp1c",   opcG1             }, // 52
     { "STX1",    opcMR,  OP_WR     }, // 53
     { "STI",     opcMR,  OP_WR     }, // 54
     { "TOV",     opcMR,  OP_NULL   }, // 55
@@ -438,7 +439,7 @@ static struct opc_t opcTable [64] =
     { "STEX",    opcMR,  OP_NULL   }, // 70
     { "TRA",     opcMR,  OP_NULL   }, // 71
     { "ORSA",    opcMR,  OP_RMW    }, // 72
-    { "grp1a",   opcG1 }, // 73
+    { "grp1a",   opcG1             }, // 73
     { "TZE",     opcMR,  OP_NULL   }, // 74
     { "TMI",     opcMR,  OP_NULL   }, // 75
     { "AOS",     opcMR,  OP_RMW    }, // 76
@@ -548,20 +549,20 @@ t_stat sim_instr (void)
         sim_debug (DBG_TRACE, & cpuDev, "%05o:%06o %s\n", cpu . rIC, ins, disassemble (ins));
         listSource (cpu . rIC);
 
-        word6 OPCODE = getbits18 (ins, 3, 6);
-        word1 I = 0;
-        word2 T = 0;
-        word9 D = 0;
-        word3 S1 = 0;
-        word3 S2 = 0;
-        word6 K = 0;
-        word15 W = 0;
-        word3 C = 0;
-        word18 Y = 0;
-        word36 YY = 0;
-        word15 NEXT_IC = (cpu . rIC + 1) & BITS15;
+        cpu . OPCODE = getbits18 (ins, 3, 6);
+        cpu . I = 0;
+        cpu . T = 0;
+        cpu . D = 0;
+        cpu . S1 = 0;
+        cpu . S2 = 0;
+        cpu . K = 0;
+        cpu . W = 0;
+        cpu . C = 0;
+        cpu . Y = 0;
+        cpu . YY = 0;
+        cpu . NEXT_IC = (cpu . rIC + 1) & BITS15;
 
-        switch (opcTable [OPCODE] . grp)
+        switch (opcTable [cpu . OPCODE] . grp)
           {
             case opcILL:
               {
@@ -571,25 +572,25 @@ t_stat sim_instr (void)
 
             case opcMR:
               {
-                I = getbits18 (ins, 0, 1);
-                T = getbits18 (ins, 1, 2);
-                D = getbits18 (ins, 9, 9);
-                bool ok = doCAF (& cpu, I, T, D, & W, & C);
+                cpu . I = getbits18 (ins, 0, 1);
+                cpu . T = getbits18 (ins, 1, 2);
+                cpu . D = getbits18 (ins, 9, 9);
+                bool ok = doCAF (& cpu, cpu . I, cpu . T, cpu . D, & cpu . W, & cpu . C);
                 if (! ok)
                   {
                     sim_printf ("doCAF failed\n");
                     longjmp (jmpMain, JMP_STOP);
                   }
-                if (opcTable [OPCODE] . opRD)
+                if (opcTable [cpu . OPCODE] . opRD)
                   {
-                    if (opcTable [OPCODE] . opSize == opW)
+                    if (opcTable [cpu . OPCODE] . opSize == opW)
                       {
-                        Y = fromMemory (& cpu, W, C);
+                        cpu . Y = fromMemory (& cpu, cpu . W, cpu . C);
                       }
-                    else if (opcTable [OPCODE] . opSize == opDW)
+                    else if (opcTable [cpu . OPCODE] . opSize == opDW)
                       {
-                        //YY = fromMemory36 (& cpu, W, C);
-                        YY = fromMemory36 (& cpu, W, 1);
+                        //cpu . YY = fromMemory36 (& cpu, cpu . W, cpu . C);
+                        cpu . YY = fromMemory36 (& cpu, cpu . W, 1);
                       }
                   }
                 break;
@@ -597,24 +598,24 @@ t_stat sim_instr (void)
 
             case opcG1:
               {
-                S1 = getbits18 (ins, 0, 3);
-                D = getbits18 (ins, 9, 9);
-                sim_debug (DBG_DEBUG, & cpuDev, "grp1 S1 %o D %03o\n", S1, D);
+                cpu . S1 = getbits18 (ins, 0, 3);
+                cpu . D = getbits18 (ins, 9, 9);
+                sim_debug (DBG_DEBUG, & cpuDev, "grp1 S1 %o D %03o\n", cpu . S1, cpu . D);
                 break;
               }
             case opcG2:
               {
-                S1 = getbits18 (ins, 0, 3);
-                S2 = getbits18 (ins, 9, 3);
-                K = getbits18 (ins, 12, 6);
+                cpu . S1 = getbits18 (ins, 0, 3);
+                cpu . S2 = getbits18 (ins, 9, 3);
+                cpu . K = getbits18 (ins, 12, 6);
                 break;
               }
           }
 
 #define ILL doFault (faultIllegalOpcode, "illegal opcode")
-#define UNIMP doUnimp (OPCODE);
+#define UNIMP doUnimp (cpu . OPCODE);
 
-        switch (OPCODE)
+        switch (cpu . OPCODE)
           {
             case 000: // illegal
               ILL;
@@ -627,14 +628,14 @@ t_stat sim_instr (void)
 
             case 003: // LDX2
               // Load X2
-              cpu . rX2 = Y;
+              cpu . rX2 = cpu . Y;
               SCF (cpu . rX2 == 0, cpu . rIR, I_ZERO);
               break;
 
             case 004: // LDAQ
               // Load AQ
-              cpu . rA = (YY >> 18) & BITS18;
-              cpu . rQ = (YY >>  0) & BITS18;
+              cpu . rA = (cpu . YY >> 18) & BITS18;
+              cpu . rQ = (cpu . YY >>  0) & BITS18;
               SCF (cpu . rA == 0 && cpu . rQ == 0, cpu . rIR, I_ZERO);
               SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
               break;
@@ -647,7 +648,7 @@ t_stat sim_instr (void)
 
             case 007: // LDA
               // Load A
-              cpu . rA = Y;
+              cpu . rA = cpu . Y;
               SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
               SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
               break;
@@ -657,8 +658,8 @@ t_stat sim_instr (void)
             case 010: // TSY
               // Transfer amd Store IC in Y
               
-              Y = (cpu . rIC + 1) & BITS15;
-              NEXT_IC = (W + 1) & BITS15;
+              cpu . Y = (cpu . rIC + 1) & BITS15;
+              cpu . NEXT_IC = (cpu . W + 1) & BITS15;
               break;
 
             case 011: // ill
@@ -666,7 +667,7 @@ t_stat sim_instr (void)
 
             case 012: // grp1d
               {
-                switch (S1)
+                switch (cpu . S1)
                   {
                     case 0:  // RIER
                       UNIMP;
@@ -682,12 +683,12 @@ t_stat sim_instr (void)
 
             case 013: // STX2
               // Store X2
-              Y = cpu . rX2;
+              cpu . Y = cpu . rX2;
               break;
 
             case 014: // STAQ
               // Store AQ
-              YY = (((word36) cpu . rA) << 18) | cpu . rQ;
+              cpu . YY = (((word36) cpu . rA) << 18) | cpu . rQ;
               break;
 
             case 015: // ADAQ
@@ -696,8 +697,8 @@ t_stat sim_instr (void)
                 bool ovf;
                 word36 tmp = ((word36) (cpu . rA) << 18) | cpu . rQ;
                 sim_debug (DBG_TRACE, & cpuDev, "ADAQ     %012lo\n", tmp);
-                sim_debug (DBG_TRACE, & cpuDev, "ADAQ +   %012lo\n", YY);
-                word36 res = Add36b (tmp, YY, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                sim_debug (DBG_TRACE, & cpuDev, "ADAQ +   %012lo\n", cpu . YY);
+                word36 res = Add36b (tmp, cpu . YY, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
                                      & cpu . rIR, & ovf);
                 sim_debug (DBG_TRACE, & cpuDev, "ADAQ =  %d%012lo\n", TSTF (cpu . rIR, I_CARRY) ? 1 : 0, res);
                 //if (ovf and fault) XXX
@@ -712,7 +713,7 @@ t_stat sim_instr (void)
 
             case 017: // STA
               // Store A
-              Y = cpu . rA;
+              cpu . Y = cpu . rA;
               break;
 
 
@@ -725,7 +726,7 @@ t_stat sim_instr (void)
 
             case 022: // grp1b
               {
-                switch (S1)
+                switch (cpu . S1)
                   {
                     case 0:  // IANA
                       UNIMP;
@@ -756,7 +757,7 @@ t_stat sim_instr (void)
               {
                 bool ovf;
                 word36 tmp = ((word36) (cpu . rA) << 18) | cpu . rQ;
-                word36 res = Sub36b (tmp, YY, 1, I_ZERO | I_NEG | I_OVF | I_CARRY,
+                word36 res = Sub36b (tmp, cpu . YY, 1, I_ZERO | I_NEG | I_OVF | I_CARRY,
                                      & cpu . rIR, & ovf);
                 //if (ovf and fault) XXX
 
@@ -787,11 +788,11 @@ t_stat sim_instr (void)
 
             case 033: // grp2
               {
-                switch (S1)
+                switch (cpu . S1)
                   {
                     case 0:
                       {
-                        switch (S2)
+                        switch (cpu . S2)
                           {
                             case 2: // CAX2
                               // Copy A into X2
@@ -809,7 +810,7 @@ t_stat sim_instr (void)
                              {
                                // should a shift of 0 clear the carry?
                                CLRF (cpu . rIR, I_CARRY);
-                               for (uint i = 0; i < K; i ++)
+                               for (uint i = 0; i < cpu . K; i ++)
                                  {
                                    if (cpu . rA & BIT0)
                                      SETF (cpu . rIR, I_CARRY);
@@ -831,7 +832,7 @@ t_stat sim_instr (void)
 
                     case 1:
                       {
-                        switch (S2)
+                        switch (cpu . S2)
                           {
                             case 4: // NRML
                              UNIMP;
@@ -847,7 +848,7 @@ t_stat sim_instr (void)
 
                     case 2:
                       {
-                        switch (S2)
+                        switch (cpu . S2)
                           {
                             case 1: // NOP
                               // No Operation
@@ -878,7 +879,7 @@ t_stat sim_instr (void)
 
                     case 3:
                       {
-                        switch (S2)
+                        switch (cpu . S2)
                           {
                             case 1: // INH
                               // Interrupt inhibit
@@ -908,7 +909,7 @@ t_stat sim_instr (void)
                               
                               {
                                 int ones = 0;
-                                for (uint n = 0; n < K; n ++)
+                                for (uint n = 0; n < cpu . K; n ++)
                                   {
                                     word1 out = getbits18 (cpu . rA, 0, 1);
                                     cpu . rA <<= 1;
@@ -929,7 +930,7 @@ t_stat sim_instr (void)
 
                     case 4:
                       {
-                        switch (S2)
+                        switch (cpu . S2)
                           {
                             case 1: // DIS
                              UNIMP;
@@ -958,7 +959,7 @@ t_stat sim_instr (void)
 
                     case 6:
                       {
-                        switch (S2)
+                        switch (cpu . S2)
                           {
                             case 3: // CAQ
                               // Copy A into Q
@@ -979,7 +980,7 @@ t_stat sim_instr (void)
 
                     case 7:
                       {
-                        switch (S2)
+                        switch (cpu . S2)
                           {
                             case 1: // ENI
                               // Enable interrupt
@@ -1002,7 +1003,7 @@ t_stat sim_instr (void)
                               
                               {
                                 int ones = 0;
-                                for (uint n = 0; n < K; n ++)
+                                for (uint n = 0; n < cpu . K; n ++)
                                   {
                                     word1 out = getbits18 (cpu . rQ, 0, 1);
                                     cpu . rQ <<= 1;
@@ -1038,7 +1039,7 @@ t_stat sim_instr (void)
 
             case 037: // ORA
               // OR to A
-              cpu . rA |= Y;
+              cpu . rA |= cpu . Y;
               SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
               SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
               break;
@@ -1050,7 +1051,7 @@ t_stat sim_instr (void)
 
             case 041: // LDX3
               // Load X3
-              cpu . rX3 = Y;
+              cpu . rX3 = cpu . Y;
               SCF (cpu . rX3 == 0, cpu . rIR, I_ZERO);
               break;
 
@@ -1059,21 +1060,21 @@ t_stat sim_instr (void)
 
             case 043: // LDX1
               // Load X1
-              cpu . rX1 = Y;
+              cpu . rX1 = cpu . Y;
               SCF (cpu . rX1 == 0, cpu . rIR, I_ZERO);
               break;
 
             case 044: // LDI
               // Load I
               // C(Y) (Bits 0-7, 12-17) -> C(I)
-              cpu . rIR = Y & 0776077;
+              cpu . rIR = cpu . Y & 0776077;
               break;
 
             case 045: // TNC
               // Transfer on No Carry
               if (! TSTF (cpu . rIR, I_CARRY))
                 {
-                  NEXT_IC = W;
+                  cpu . NEXT_IC = cpu . W;
                 }
               break;
 
@@ -1082,7 +1083,7 @@ t_stat sim_instr (void)
 
             case 047: // LDQ
               // Load Q
-              cpu . rQ = Y;
+              cpu . rQ = cpu . Y;
               SCF (cpu . rQ == 0, cpu . rIR, I_ZERO);
               SCF (getbits18 (cpu . rQ, 0, 1) == 1, cpu . rIR, I_NEG);
               break;
@@ -1091,7 +1092,7 @@ t_stat sim_instr (void)
 // 50 - 57
             case 050: // STX3
               // Store X3
-              Y = cpu . rX3;
+              cpu . Y = cpu . rX3;
               break;
               UNIMP;
 
@@ -1100,7 +1101,7 @@ t_stat sim_instr (void)
 
             case 052: // grp1c
               {
-                switch (S1)
+                switch (cpu . S1)
                   {
                     case 0:  // SIER
                       UNIMP;
@@ -1116,37 +1117,46 @@ t_stat sim_instr (void)
 
             case 053: // STX1
               // Store X1
-              Y = cpu . rX1;
+              cpu . Y = cpu . rX1;
               break;
 
             case 054: // STI
               // Store I
               // C(I) (Bits 0-7, 12-17) -> C(Y)
-              Y = cpu . rIR & 0776077;
+              cpu . Y = cpu . rIR & 0776077;
               break;
 
             case 055: // TOV
               // Transfer on Overflow
               if (TSTF (cpu . rIR, I_OVF))
                 {
-                  NEXT_IC = W;
+                  cpu . NEXT_IC = cpu . W;
                   CLRF (cpu . rIR, I_OVF);
                 }
               break;
 
             case 056: // STZ
               // Store Zero
-              Y = 0;
+              cpu . Y = 0;
               break;
 
             case 057: // STQ
               // Store Q
-              Y = cpu . rQ;
+              cpu . Y = cpu . rQ;
               break;
 
 
 // 60 - 67
             case 060: // CIOC
+              // Connect Input/Output Channel
+
+	    // "The CIOC instruction always accesses a double-precision
+	    // (36-bit) Peripheral Control Word (PCW) and sends it, or
+	    // portions thereof, to the channel indicated by the I/O channel
+	    // Select Register. If the channel has a 6-, 9-, or 19-bit
+	    // interface, it uses only part of the word."
+
+              iomCIOC ();
               UNIMP;
 
             case 061: // CMPX3
@@ -1162,7 +1172,7 @@ t_stat sim_instr (void)
               // Transfer on Not Zero
               if (! TSTF (cpu . rIR, I_ZERO))
                 {
-                  NEXT_IC = W;
+                  cpu . NEXT_IC = cpu . W;
                 }
               break;
 
@@ -1170,7 +1180,7 @@ t_stat sim_instr (void)
               // Transfer on Plus
               if (! TSTF (cpu . rIR, I_NEG))
                 {
-                  NEXT_IC = W;
+                  cpu . NEXT_IC = cpu . W;
                 }
               break;
 
@@ -1187,20 +1197,20 @@ t_stat sim_instr (void)
 
             case 071: // TRA
               // Transfer unconditionally
-              NEXT_IC = W;
-              sim_debug (DBG_DEBUG, & cpuDev, "TRA %05o\n", NEXT_IC);
+              cpu . NEXT_IC = cpu . W;
+              sim_debug (DBG_DEBUG, & cpuDev, "TRA %05o\n", cpu . NEXT_IC);
               break;
 
             case 072: // ORSA
               // OR to storage A
-              Y |= cpu . rA;
-              SCF (Y == 0, cpu . rIR, I_ZERO);
-              SCF (getbits18 (Y, 0, 1) == 1, cpu . rIR, I_NEG);
+              cpu . Y |= cpu . rA;
+              SCF (cpu . Y == 0, cpu . rIR, I_ZERO);
+              SCF (getbits18 (cpu . Y, 0, 1) == 1, cpu . rIR, I_NEG);
               break;
 
             case 073: // grp1a
               {
-                switch (S1)
+                switch (cpu . S1)
                   {
                     case 0:  // SEL
                       UNIMP;
@@ -1209,10 +1219,10 @@ t_stat sim_instr (void)
                       // Immediate Add Character Adress to X1
                       // FA (C(X1), D] -> X1
                       {
-                        int wx = SIGNEXT6 (D & BITS6);
-                        word3 cx = (D >> 6) & BITS3;
+                        int wx = SIGNEXT6 (cpu . D & BITS6);
+                        word3 cx = (cpu . D >> 6) & BITS3;
 
-if (D & 040) // if bit 12 (sign) set
+if (cpu . D & 040) // if bit 12 (sign) set
   cx = ~cx;
 
                         int wy = SIGNEXT15 (cpu . rX1 & BITS15);
@@ -1231,10 +1241,10 @@ if (D & 040) // if bit 12 (sign) set
                       // Immediate Add Character Adress to X2
                       // FA (C(X2), D] -> X2
                       {
-                        int wx = SIGNEXT6 (D & BITS6);
-                        word3 cx = (D >> 6) & BITS3;
+                        int wx = SIGNEXT6 (cpu . D & BITS6);
+                        word3 cx = (cpu . D >> 6) & BITS3;
 
-if (D & 040) // if bit 12 (sign) set
+if (cpu . D & 040) // if bit 12 (sign) set
   cx = ~cx;
 
                         int wy = SIGNEXT15 (cpu . rX2 & BITS15);
@@ -1253,10 +1263,10 @@ if (D & 040) // if bit 12 (sign) set
                       // Immediate Add Character Adress to X3
                       // FA (C(X3), D] -> X3
                       {
-                        int wx = SIGNEXT6 (D & BITS6);
-                        word3 cx = (D >> 6) & BITS3;
+                        int wx = SIGNEXT6 (cpu . D & BITS6);
+                        word3 cx = (cpu . D >> 6) & BITS3;
 
-if (D & 040) // if bit 12 (sign) set
+if (cpu . D & 040) // if bit 12 (sign) set
   cx = ~cx;
 
                         int wy = SIGNEXT15 (cpu . rX3 & BITS15);
@@ -1273,7 +1283,7 @@ if (D & 040) // if bit 12 (sign) set
 
                     case 4:  // ILQ
                       // Immediate Load Q
-                      cpu . rQ = SIGNEXT9 (D & 0777) & BITS18;
+                      cpu . rQ = SIGNEXT9 (cpu . D & 0777) & BITS18;
                       SCF (cpu . rQ == 0, cpu . rIR, I_ZERO);
                       SCF (getbits18 (cpu . rQ, 0, 1) == 1, cpu . rIR, I_NEG);
                       break;
@@ -1281,7 +1291,7 @@ if (D & 040) // if bit 12 (sign) set
                     case 5:  // IAQ
                       // Immediate Add Q
                       {
-                        word18 tmp = SIGNEXT9 (D & 0777) & BITS18;
+                        word18 tmp = SIGNEXT9 (cpu . D & 0777) & BITS18;
                         bool ovf;
                         cpu . rQ = Add18b (cpu . rQ, tmp, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
                                            & cpu . rIR, & ovf);
@@ -1291,7 +1301,7 @@ if (D & 040) // if bit 12 (sign) set
 
                     case 6:  // ILA
                       // Immediate Load A
-                      cpu . rA = SIGNEXT9 (D & 0777) & BITS18;
+                      cpu . rA = SIGNEXT9 (cpu . D & 0777) & BITS18;
                       SCF (cpu . rA == 0, cpu . rIR, I_ZERO);
                       SCF (getbits18 (cpu . rA, 0, 1) == 1, cpu . rIR, I_NEG);
                       break;
@@ -1299,7 +1309,7 @@ if (D & 040) // if bit 12 (sign) set
                     case 7:  // IAA
                       // Immediate Add A
                       {
-                        word18 tmp = SIGNEXT9 (D & 0777) & BITS18;
+                        word18 tmp = SIGNEXT9 (cpu . D & 0777) & BITS18;
                         bool ovf;
                         cpu . rA = Add18b (cpu . rA, tmp, 0, I_ZERO | I_NEG | I_OVF | I_CARRY,
                                            & cpu . rIR, & ovf);
@@ -1315,7 +1325,7 @@ if (D & 040) // if bit 12 (sign) set
               // Transfer on Zero
               if (TSTF (cpu . rIR, I_ZERO))
                 {
-                  NEXT_IC = W;
+                  cpu . NEXT_IC = cpu . W;
                 }
               break;
 
@@ -1323,15 +1333,15 @@ if (D & 040) // if bit 12 (sign) set
               // Transfer on Minus
               if (TSTF (cpu . rIR, I_NEG))
                 {
-                  NEXT_IC = W;
+                  cpu . NEXT_IC = cpu . W;
                 }
               break;
 
             case 076: // AOS
               // Add One to Storage
-              Y = (Y + 1) & BITS18;
-              SCF (Y == 0, cpu . rIR, I_ZERO);
-              SCF (getbits18 (Y, 0, 1) == 1, cpu . rIR, I_NEG);
+              cpu . Y = (cpu . Y + 1) & BITS18;
+              SCF (cpu . Y == 0, cpu . rIR, I_ZERO);
+              SCF (getbits18 (cpu . Y, 0, 1) == 1, cpu . rIR, I_NEG);
               break;
 
             case 077: // ill
@@ -1339,18 +1349,18 @@ if (D & 040) // if bit 12 (sign) set
 
           }
 
-        if (opcTable [OPCODE] . grp == opcMR)
+        if (opcTable [cpu . OPCODE] . grp == opcMR)
           {
-            if (opcTable [OPCODE] . opWR)
+            if (opcTable [cpu . OPCODE] . opWR)
               {
-                if (opcTable [OPCODE] . opSize == opW)
+                if (opcTable [cpu . OPCODE] . opSize == opW)
                   {
-                    toMemory (& cpu, Y, W, C);
+                    toMemory (& cpu, cpu . Y, cpu . W, cpu . C);
                   }
-                else if (opcTable [OPCODE] . opSize == opDW)
+                else if (opcTable [cpu . OPCODE] . opSize == opDW)
                   {
-                    //toMemory36 (& cpu, YY, W, C);
-                    toMemory36 (& cpu, YY, W, 1);
+                    //toMemory36 (& cpu, cpu . YY, cpu . W, cpu . C);
+                    toMemory36 (& cpu, cpu . YY, cpu . W, 1);
                   }
               }
           }
@@ -1367,7 +1377,7 @@ if (D & 040) // if bit 12 (sign) set
                    TSTF (cpu . rIR, I_CARRY) ? "C" : "!C",
                    TSTF (cpu . rIR, I_OVF) ?   "O" : "!O");
 
-        cpu . rIC = NEXT_IC;
+        cpu . rIC = cpu . NEXT_IC;
 
 // Instruction times vary from 1 us up.
         usleep (1);

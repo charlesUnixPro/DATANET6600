@@ -2,6 +2,31 @@
 #include "coupler.h"
 #include "udplib.h"
 
+// dd01 pg 5-14 DATANET FNP Interface
+//
+// CIOC PCW: 100452000070
+//
+// PCW
+//   0 -  2  001 Specifies and indirect 36 character address
+//   3 - 16  Y
+//  17       0
+//  18 - 20  000
+//  21       P1  Signifies the parity bit to make bits 0-17 odd parity.
+//  22       P2  Signifies the parity bit to make bits 18-35 odd parity.
+//  23       M   Specifies the DIA channel should be masked if this bit
+//               is one. All other fields are ignored if the bit is one.
+//  24 - 26 000
+//  37 - 29 X
+//  30 - 35 C
+//
+// C,X,Y:
+//
+//  C 73: Interrupt central system. X: Centeral Systrem IOM interrupt level 
+//        no. to be set.
+//  C: Any legal opcode except 73: Start DIA List Service Y: Address of LIST
+//        ICW.
+//
+
 static t_stat couplerReset (DEVICE *dptr)
   {
     return SCPE_OK;

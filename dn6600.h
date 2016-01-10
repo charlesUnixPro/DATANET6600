@@ -98,6 +98,24 @@ typedef struct
     word18  rS;             // I/O channel select register
     word1   rII;            // interrupt inhibit
 
+// Instruction decoder workspace
+
+    word6  OPCODE;
+    word1  I;
+    word2  T;
+    word9  D;
+    word3  S1;
+    word3  S2;
+    word6  K;
+    word15 W;
+    word3  C;
+    word18 Y;
+    word36 YY;
+    word15 NEXT_IC;
+
+
+// CAF results
+
 } cpu_t;
 
 extern cpu_t cpu;
@@ -128,6 +146,18 @@ enum
 #define JMP_ENTRY       0
 #define JMP_REENTRY     1
 #define JMP_STOP        2
+
+// DATANET FNP GENERAL MEMORY MAP
+//
+//  00000 00377 Interrupt vectors
+//  00400 00417 Interrupt cells
+//  00420 00436 IOM Fault status
+//  00440 00447 Processor fault vectors
+//  00450 00777 I/O Comm. Region
+//  01000 01777 HLSA #1 I/O Comm. Region
+//  02000 02777 #2
+//  03000 03777 #3
+//  04000 77777 Program area
 
 extern jmp_buf jmpMain;
 extern DEVICE cpuDev;
