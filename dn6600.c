@@ -1222,8 +1222,9 @@ t_stat sim_instr (void)
                         int wx = SIGNEXT6 (cpu . D & BITS6);
                         word3 cx = (cpu . D >> 6) & BITS3;
 
-if (cpu . D & 040) // if bit 12 (sign) set
-  cx = ~cx;
+                        // XXX C7 fix
+                        if (cx == 07)
+                          cx = 0;
 
                         int wy = SIGNEXT15 (cpu . rX1 & BITS15);
                         word3 cy = (cpu . rX1 >> 15) & BITS3;
@@ -1244,8 +1245,9 @@ if (cpu . D & 040) // if bit 12 (sign) set
                         int wx = SIGNEXT6 (cpu . D & BITS6);
                         word3 cx = (cpu . D >> 6) & BITS3;
 
-if (cpu . D & 040) // if bit 12 (sign) set
-  cx = ~cx;
+                        // XXX C7 fix
+                        if (cx == 07)
+                          cx = 0;
 
                         int wy = SIGNEXT15 (cpu . rX2 & BITS15);
                         word3 cy = (cpu . rX2 >> 15) & BITS3;
@@ -1266,8 +1268,9 @@ if (cpu . D & 040) // if bit 12 (sign) set
                         int wx = SIGNEXT6 (cpu . D & BITS6);
                         word3 cx = (cpu . D >> 6) & BITS3;
 
-if (cpu . D & 040) // if bit 12 (sign) set
-  cx = ~cx;
+                        // XXX C7 fix
+                        if (cx == 07)
+                          cx = 0;
 
                         int wy = SIGNEXT15 (cpu . rX3 & BITS15);
                         word3 cy = (cpu . rX3 >> 15) & BITS3;
