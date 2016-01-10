@@ -98,7 +98,7 @@ static REG cpu_reg [] =
     {ORDATA (A,  cpu . rA,     WSZ), 0, 0},
     {ORDATA (Q,  cpu . rQ,     WSZ), 0, 0},
     {ORDATA (IR, cpu . rIR,    8),   0, 0}, // Indicator register
-    {ORDATA (S,  cpu . rS,     6),   0, 0}, // I/O channel select register
+    //{ORDATA (S,  cpu . rS,     6),   0, 0}, // I/O channel select register
     {ORDATA (II, cpu . rII,    1),   0, 0}, // interrupt inhibit
     NULL
   };

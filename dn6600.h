@@ -95,7 +95,7 @@ typedef struct
     word18  rX1;            // index register X1
     word18  rX2;            // index register X2
     word18  rX3;            // index register X3
-    word18  rS;             // I/O channel select register
+    //word18  rS;             // I/O channel select register
     word1   rII;            // interrupt inhibit
 
 // Instruction decoder workspace

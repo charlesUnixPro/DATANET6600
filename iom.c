@@ -4,6 +4,6 @@
 void iomCIOC (void)
   {
     word36 PCW = fromMemory36 (& cpu, cpu . W, 1);
-    sim_printf ("PCW %012lo S %o\n", PCW, cpu . rS);
+    sim_printf ("PCW %012lo S %o\n", PCW, cpu . rIR & 077);
   }
 
