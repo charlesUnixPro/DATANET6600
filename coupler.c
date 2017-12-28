@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "dn6600.h"
 #include "coupler.h"
 #include "udplib.h"
@@ -27,12 +29,23 @@
 //        ICW.
 //
 
+static struct
+  {
+    struct
+      {
+        word1 BT_INH; // Bootload Inhibit  60132445 pg 33
+        word1 STORED_BOOT; // 60132445 pg 33
+      } task_register;
+    int32 link;
+  } coupler_data;
+
 static t_stat couplerReset (DEVICE *dptr)
   {
+    coupler_data.task_register.BT_INH = 0;
+    coupler_data.task_register.STORED_BOOT = 0;
     return SCPE_OK;
   }
 
-static int32 link;
 
 static t_stat couplerAttach (UNIT * uptr, char * cptr)
   {
@@ -60,7 +73,7 @@ static t_stat couplerAttach (UNIT * uptr, char * cptr)
     strncpy (pfn, cptr, CBUFSIZE);
 
     // Create the UDP connection.
-    ret = udp_create (cptr, & link);
+    ret = udp_create (cptr, & coupler_data.link);
     if (ret != SCPE_OK)
       {
         free (pfn);
@@ -83,10 +96,10 @@ t_stat couplerDetach (UNIT * uptr)
     t_stat ret;
     if ((uptr -> flags & UNIT_ATT) == 0)
       return SCPE_OK;
-    ret = udp_release (link);
+    ret = udp_release (coupler_data.link);
     if (ret != SCPE_OK)
       return ret;
-    link = NOLINK;
+    coupler_data.link = NOLINK;
     uptr -> flags &= ~UNIT_ATT;
     free (uptr -> filename);
     uptr -> filename = NULL;
@@ -141,3 +154,125 @@ DEVICE couplerDev =
     NULL,             // device description
   };
 
+#define psz 17000
+static uint8_t pkt[psz];
+
+// warning: returns ptr to static buffer
+int poll_coupler (uint8_t * * pktp)
+  {
+    int sz = dn_udp_receive (coupler_data.link, pkt, psz);
+    if (sz < 0)
+      {
+        sim_printf ("dn_udp_receive failed: %d\n", sz);
+        sz = 0;
+      }
+    * pktp = pkt;
+    return sz;
+  }
+
+void wait_for_boot (void)
+  {
+sim_printf ("waiting for boot signal\n");
+
+// 60132445 pg 33
+
+    if (coupler_data.task_register.BT_INH)
+      {
+        sim_printf ("WARNING: coupler waiting for boot with boot inhibit set\r\n");
+      }
+
+    uint8_t * pktp; 
+    while (1)
+      {
+        int sz = poll_coupler (& pktp);
+//sim_printf ("poll_coupler return %d\n", sz);
+        if (! sz)
+          {
+            sleep (1);
+            continue;
+          }
+
+#if 1
+        sim_printf ("pkt[0] %hhu\r\n", pktp[0]);
+        sim_printf ("sz: %d\n", sz);
+        for (int i = 0; i < sz; i ++) sim_printf (" %03o", pktp[i]); sim_printf ("\r\n");
+#endif
+        if (pkt[0] != dn_cmd_bootload)
+          {
+            sim_printf ("got cmd %u; expected 1\r\n", pkt[0]);
+            continue;
+          }
+        break;
+      }
+
+    // 60132445 pg 33
+    coupler_data.task_register.STORED_BOOT = 1;
+
+// "It obtains the L6 address and Tally from the TCW pointed to by the L66 
+//  mailbox word and stores these internally; it also stores internaly, as
+//  the L66 address for the Bootload, the address plus one of the above
+//  Transfer Control Word"
+
+    dn_bootload * p = (dn_bootload *) pktp;
+//sim_printf ("dia_pcw: %12lo\r\n", p->dia_pcw);
+
+    // The real coupler would at this point boot the DN CPU; it would run
+    // it's boot PROM, and eventually:
+
+    // pg 33: "The coupler then awaits the receipt of an Input Stored Boot
+    // IOLD (FC=09) order (see 3.8).
+
+    // pg 45:
+    
+    //  3.8 BOOTLOAD OF L6 BY L66
+    //...
+    // The receipt of the Input Stored Boot order causes the coupler,
+    // if the Stored Boot but is ONE, to input data into L6 memory as
+    // specified by the L66 Bootload order. On completion of this,
+    // the Stored Boot bit is cleared.
+    //
+    // ... the PROM program issues the Input Stored Boot IOLD order
+    // to the coupler..
+    //
+    // ... the L66 Bootload command specifies the L6 memory locations into
+    // which the load from L66 is to occur and the extent of the lod;
+    // location (0100)16 in L6 would always be the first location to be
+    // executed by L6 after the load from L66 assuming that the L66
+    // bootload is independent of the mechanization used in L66
+
+    // Issued a Input Stored Boot IOLD order
+
+    dn_ids_iold pkt;
+    pkt.cmd = dn_cmd_ISB_IOLD;
+    int rc = dn_udp_send (coupler_data.link, (uint8_t *) & pkt, sizeof (pkt), PFLG_FINAL);
+    if (rc)
+      {
+        sim_printf ("dn_udp_send dn_cmd_ISB_IOLD returned %d\r\n", rc);
+      }
+
+// Wait for GICB
+
+sim_printf ("waiting for buffer\n");
+    while (1)
+      {
+        int sz = poll_coupler (& pktp);
+//sim_printf ("poll_coupler return %d\n", sz);
+        if (! sz)
+          {
+            sleep (1);
+            continue;
+          }
+
+#if 1
+        sim_printf ("pkt[0] %hhu\r\n", pktp[0]);
+        sim_printf ("sz: %d\n", sz);
+        for (int i = 0; i < sz; i ++) sim_printf (" %03o", pktp[i]); sim_printf ("\r\n");
+#endif
+        if (pktp[0] != dn_cmd_buffer)
+          {
+            sim_printf ("got cmd %u; expected 1\r\n", pktp[0]);
+            continue;
+          }
+        break;
+      }
+  }

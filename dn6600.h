@@ -129,6 +129,13 @@ extern cpu_t cpu;
 
 // FAULTS
 
+// DC88, pg 32:
+//  "Two faults, storaage parity error and overflow, can be inhibited by
+//   the program be setting the appropriate bit in the indicator register
+//   (using the LDI instruction). If one of these two faults occurs, the indi-
+//   cator associated iwth the fault is turned on and no transfer to a fault
+//   processing routine is accomplished.
+
 // Fault vector memory locations
 enum 
   {

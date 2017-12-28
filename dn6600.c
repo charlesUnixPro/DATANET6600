@@ -1667,6 +1667,14 @@ leave:
 // Temp boot code for testing
 static t_stat cpu_boot (UNUSED int32 unit_num, UNUSED DEVICE * dptr)
   {
+
+// Hang until a boot command is received
+
+   wait_for_boot ();
+
+   // Issue a 
+
+#if 0
 #define TALLY  00517
 
 static uint64_t gicb [TALLY] =
@@ -2018,5 +2026,6 @@ static uint64_t gicb [TALLY] =
       }
     cpu . rIC = 512 + 1;
     //cpu . rIC = 0x100;
+#endif
     return SCPE_OK;
   }
